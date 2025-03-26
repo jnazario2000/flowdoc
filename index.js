@@ -2,6 +2,8 @@ import express from 'express';
 import bodyParser from 'body-parser'; // For parsing JSON data
 import { MongoClient } from 'mongodb';
 import userRoutes from './src/routes/userRoutes.js'; // Import the routes for user
+import editHistoryRoutes from './src/routes/editHistoryRoutes.js'; // Import the routes for user edit history
+import userHistoryRoutes from './src/routes/userHistoryRoutes.js'; // Import the routes for user history
 
 const app = express();
 const port = 3000;
@@ -32,6 +34,8 @@ app.use(bodyParser.json());
 
 // Use the user-related routes
 app.use('/api', userRoutes);  // All routes starting with /api will be handled by userRoutes
+app.use('/api', editHistoryRoutes); // Use the editHistoryRoutes for any requests that begin with /api
+app.use('/api', userHistoryRoutes); // Use the userHistoryRoutes for any requests that begin with /api
 
 // Test route for checking if the server is up
 app.get("/", (req, res) => {
