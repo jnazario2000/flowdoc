@@ -1,5 +1,5 @@
 // this should handle interactions with the database and data processing
-import { usersCollection } from '../models/userModel.js';
+import { usersCollection } from '../models/db.js';
 
 export const userService = {
     // Create a new user
