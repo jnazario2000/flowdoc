@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 // client/src/pages/Homepage.jsx
 import React from 'react';
-import './Homepage.css'; // You'll need to create this CSS file
+import './Homepage.css'; //
 
 function Homepage() {
     return (
@@ -11,14 +11,15 @@ function Homepage() {
                 <div>FlowDoc</div>
                 <div>
                     <a href="#">Features</a>
-                    <Link to="/signin">Sign In</Link>
+                    <Link to="/fltech">Sign In</Link>  {/*do /signup to change to other signup */}
                 </div>
             </nav>
 
             <header>
                 <h1>Home Page</h1>
                 <p>The all in one place to document code! Browse different projects with all kinds of languages and functions.</p>
-                <button>Browse Projects</button>
+                <Link to = "/pages"> Browse Projects</Link>
+
                 <Link to="/Project">Create Project</Link>
             </header>
 
