@@ -8,13 +8,15 @@ const client = new MongoClient(url);
 let db;
 let usersCollection;
 let projectPagesCollection; // added
+let editHistoriesCollection;
 
 async function connect() {
     try {
         await client.connect();
         db = client.db(dbName);
         usersCollection = db.collection('users');
-        projectPagesCollection = db.collection('projectPages') // added
+        projectPagesCollection = db.collection('projectPages');
+        editHistoriesCollection = db.collection('editHistories');
     } catch (error) {
         throw new Error('Error connecting to MongoDB');
     }
@@ -22,4 +24,4 @@ async function connect() {
 
 connect();
 
-export { usersCollection, projectPagesCollection }; // changed
+export { usersCollection, projectPagesCollection, editHistoriesCollection };
