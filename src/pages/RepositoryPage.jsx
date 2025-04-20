@@ -49,6 +49,13 @@ function ProjectPage() {
     return (
         <div className="project-container">
             <header className="project-header">
+                <div className="header-top-buttons">
+                    <button className="header-button">View Source Code</button>
+                    <button className="header-button">To Do List</button>
+                    <button className="header-button">Description</button>
+                    <button className="header-button">Add Collaborator</button>
+                    <button className="header-button">Settings</button>
+                </div>
                 <div className="header-content">
                     {isEditing ? (
                         <>

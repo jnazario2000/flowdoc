@@ -1,4 +1,26 @@
 /* Main Container Styles */
+
+.header-top-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.header-button {
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #000000;
+    transition: background-color 0.2s;
+}
+
+.header-button:hover {
+    background-color: #e0e0e0;
+}
 .project-container {
     max-width: 1200px;
     margin: 0 auto;
@@ -158,7 +180,7 @@
     margin-bottom: 1rem;
     border: 1px solid #d1d5da;
     border-radius: 6px;
-    color: #24292e;
+    color: #d3dce4;
 }
 
 .edit-textarea {
@@ -171,7 +193,7 @@
     font-family: inherit;
     font-size: 1rem;
     line-height: 1.5;
-    color: #24292e;
+    color: #eff2f4;
 }
 
 /* Cell Editing */
@@ -182,8 +204,8 @@
     border-radius: 4px;
     font-family: inherit;
     font-size: 0.9rem;
-    color: #24292e;
-    background-color: white;
+    color: #f2f6fa;
+    background-color: #1e1919;
 }
 
 .edit-cell-input:focus {
