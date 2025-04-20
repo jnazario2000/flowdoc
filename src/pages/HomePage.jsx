@@ -18,9 +18,13 @@ function Homepage() {
             <header>
                 <h1>Home Page</h1>
                 <p>The all in one place to document code! Browse different projects with all kinds of languages and functions.</p>
-                <Link to = "/pages"> Browse Projects</Link>
+                <Link to="/pages" className="browse-projects-button">
+                    Browse Projects
+                </Link>
+                <Link to="/Project" className="create-projects-button">
+                    Create Projects
+                </Link>
 
-                <Link to="/Project">Create Project</Link>
             </header>
 
             <section>
