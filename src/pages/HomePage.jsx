@@ -23,7 +23,8 @@ function Homepage() {
                 <Link to="/Project">Create Project</Link>
             </header>
 
-            <section>
+            {/* We are not a public website anymore, so all of the features for standing out and differentiating ourselves are thrown away */}
+            {/*<section>
                 <h2>Most Popular</h2>
                 <div className="document-icons">
                     <div className="doc-icon">📄</div>
@@ -52,6 +53,7 @@ function Homepage() {
                     </div>
                 </div>
             </section>
+            */}
         </div>
     );
 }
