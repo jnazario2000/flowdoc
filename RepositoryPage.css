@@ -1,0 +1,227 @@
+/* Main Container Styles */
+
+.header-top-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.header-button {
+    padding: 8px 16px;
+    background-color: #ffffff;
+    border: 1px solid #ffffff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    color: #000000;
+    transition: background-color 0.2s;
+}
+
+.header-button:hover {
+    background-color: #e0e0e0;
+}
+.project-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f8f8;
+    min-height: 100vh;
+}
+
+/* Header Section */
+.project-header {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+    width: 100%;
+}
+
+.project-title {
+    color: #24292e;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.8rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.project-description {
+    color: #586069;
+    margin: 0;
+    line-height: 1.5;
+    font-size: 1rem;
+}
+
+/* Files Section */
+.project-content {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.files-section h2 {
+    color: #24292e;
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.files-table-container {
+    overflow-x: auto;
+    border-radius: 6px;
+    border: 1px solid #e1e4e8;
+    margin-bottom: 1.5rem;
+}
+
+.files-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.files-table th,
+.files-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid #e1e4e8;
+    color: #24292e;
+    line-height: 1.5;
+}
+
+.files-table th {
+    background-color: #f6f8fa;
+    font-weight: 600;
+    color: #24292e;
+    white-space: nowrap;
+}
+
+.files-table tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.files-table tr:hover {
+    background-color: #f6f8fa;
+}
+
+/* Edit Controls Section */
+.edit-controls-section {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1rem;
+    border-top: 1px solid #e1e4e8;
+    margin-top: 1rem;
+}
+
+.edit-controls {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.edit-button {
+    padding: 0.5rem 1rem;
+    background-color: #f6f8fa;
+    color: #24292e;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.edit-button:hover {
+    background-color: #e1e4e8;
+}
+
+.save-button {
+    padding: 0.5rem 1rem;
+    background-color: #2ea44f;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.save-button:hover {
+    background-color: #2a9146;
+}
+
+.cancel-button {
+    padding: 0.5rem 1rem;
+    background-color: #f6f8fa;
+    color: #24292e;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.cancel-button:hover {
+    background-color: #e1e4e8;
+}
+
+/* Edit Mode Inputs */
+.edit-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    border: 1px solid #d1d5da;
+    border-radius: 6px;
+    color: #d3dce4;
+}
+
+.edit-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    min-height: 100px;
+    border: 1px solid #d1d5da;
+    border-radius: 6px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #eff2f4;
+}
+
+/* Cell Editing */
+.edit-cell-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5da;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    color: #f2f6fa;
+    background-color: #1e1919;
+}
+
+.edit-cell-input:focus {
+    outline: none;
+    border-color: #0366d6;
+    box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .project-title {
+        font-size: 1.5rem;
+    }
+
+    .files-table th,
+    .files-table td {
+        padding: 8px 12px;
+    }
+}
