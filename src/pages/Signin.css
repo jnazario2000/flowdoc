@@ -12,8 +12,7 @@ body {
 }
 
 nav {
-    width: 100%;
-    background-color: #333;
+    background-color: #951632;
     color: white;
     padding: 10px 20px;
     text-align: center;
@@ -51,7 +50,7 @@ label {
 
 input[type="email"],
 input[type="password"] {
-    width: 100%;
+    width: 400px;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -59,7 +58,7 @@ input[type="password"] {
 }
 
 button {
-    width: 100%;
+    width: 400px;
     padding: 10px;
     background-color: #333;
     color: white;

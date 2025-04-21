@@ -8,12 +8,13 @@ nav {
 nav a {
     margin: 0 10px;
     text-decoration: none;
-    color: black;
+    color: white;
 }
 
 header {
     text-align: left;
     padding: 50px 20px;
+    color: black
 }
 
 button {
@@ -22,7 +23,6 @@ button {
     color: white;
     border: none;
     cursor: pointer;
-    margin: 10px;
 }
 
 button.secondary {
