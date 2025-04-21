@@ -49,6 +49,7 @@
     font-size: 1.8rem;
     font-weight: 600;
     line-height: 1.25;
+    text-align: center;
 }
 
 .project-description {
@@ -224,4 +225,16 @@
     .files-table td {
         padding: 8px 12px;
     }
+}
+.back-button {
+    text-decoration: none;
+    color: #09090b;
+    font-weight: bold;
+    margin: 10px;
+    display: inline-block;
+    font-size: 1rem;
+}
+
+.back-button:hover {
+    text-decoration: underline;
 }
