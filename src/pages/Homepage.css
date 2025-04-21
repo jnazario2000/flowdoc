@@ -16,11 +16,6 @@ nav {
     color: black;
 }
 
-/* Optional: highlight Profile link */
-.profile-link {
-    font-weight: bold;
-    color: #333;
-}
 
 .profile-link:hover {
     text-decoration: underline;

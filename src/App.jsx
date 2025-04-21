@@ -7,7 +7,7 @@ import HomePage from './pages/HomePage';
 import Signin from './pages/Signin';
 import Project from './pages/Project';
 import FloridaTech from './pages/FloridaTech';
-//import ProjectPages from './pages/ProjectPages.jsx';  doesn't exist yet
+import ProjectPages from './pages/ProjectPages.jsx';
 import RepositoryPage from './pages/RepositoryPage';
 import Profile from './pages/Profile'; // Import the Profile page
 
@@ -18,7 +18,7 @@ function App() {
             <Route path="/Signin" element={<Signin />} />
             <Route path= "/Project" element={<Project />} />
             <Route path="/fltech" element={<FloridaTech />} />
-            {/*<Route path="/pages" element={<ProjectPages/>} />*/}
+            *<Route path="/pages" element={<ProjectPages/>} />
             <Route path="/repository" element={<RepositoryPage/>} />
             <Route path="/profile" element={<Profile />} /> {/* Added route for Profile page */}
         </Routes>

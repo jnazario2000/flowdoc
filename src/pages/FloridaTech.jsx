@@ -22,6 +22,17 @@ function Signin() {
         }));
     };
 
+    const testApiConnection = async () => {
+        try {
+            setLoading(true);
+            const response = await axios.get('http://localhost:3001/users');
+        } catch (err) {
+            setApiStatus('failed');
+            console.error('API connection test failed:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();

@@ -9,7 +9,6 @@ import cors from 'cors';
 const app = express();
 const port = 3000;
 
-
 app.use(cors()); 
 app.use(bodyParser.json()); // Middleware to parse JSON
 
@@ -34,7 +33,7 @@ async function connectMongoDB() {
     }
 }
 
-//  Use all routes after CORS and JSON parsing
+// Use all routes after CORS and JSON parsing
 app.use('/api', userRoutes);  
 app.use('/api', editHistoryRoutes); 
 app.use('/api', projectPageRoutes);
