@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import './ProjectList.css';
 
@@ -37,12 +38,15 @@ function ProjectPagesList() {
             <ul className="project-list">
                 {projectPages.map(project => (
                     <li key={project._id} className="project-item">
-                        <h3>{project.title}</h3>
-                        <p className="description">{project.description}</p>
-                        <div className="meta">
-                            <span>Owner: {project.ownerId?.toString() || 'Unknown'}</span>
-                            <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
-                        </div>
+                        <Link to={`/repository`} state={{ repoInfo: project, files: project.files }}>
+                            <h3>{project.title}</h3>
+                            <p className="description">{project.description}</p>
+                            <div className="meta">
+
+                                <span>Owner: {project.ownerId?.toString() || 'Unknown'}</span>
+                                <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
+                            </div>
+                        </Link>
                     </li>
                 ))}
             </ul>

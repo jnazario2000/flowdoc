@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Project.css';
+import axios from 'axios';
+
 
 function GitHubFileExplorer() {
     const [repoUrl, setRepoUrl] = useState('');
@@ -22,14 +24,17 @@ function GitHubFileExplorer() {
             const repoData = await repoResponse.json();
 
             const files = await fetchFiles(owner, repo);
+            await axios.post('http://localhost:3000/api/project-pages', {
+                title: repoData.name,
+                description: repoData.description,
+                files: files,
+            });
 
             navigate('/repository', {
                 state: {
                     repoInfo: {
                         name: repoData.name,
                         description: repoData.description,
-                        stars: repoData.stargazers_count,
-                        forks: repoData.forks_count
                     },
                     files: files
                 }

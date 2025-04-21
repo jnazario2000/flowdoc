@@ -1,23 +1,73 @@
-/* src/pages/ProjectsList/ProjectsList.css */
-.projects-list {
-    padding: 2rem;
+/* ProjectList.css */
+
+/* Container for the entire list */
+.project-list-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-.projects-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-top: 2rem;
+/* Title */
+h2 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
 }
 
-.project-card {
+/* Style for the list */
+.project-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start; /* Align to the left */
+    gap: 20px;
+    direction: rtl; /* Right to Left layout */
+    padding: 0;
+    list-style: none;
+}
+
+/* Style for each project item (box) */
+.project-item {
+    background-color: #8a2626;
     border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 1.5rem;
-    transition: transform 0.2s;
+    border-radius: 10px;
+    width: 300px;
+    padding: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.project-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+/* Title of each project */
+.project-item h3 {
+    font-size: 1.5rem;
+    margin: 0;
+    font-weight: bold;
+}
+
+/* Description */
+.project-item .description {
+    font-size: 1rem;
+    color: #1c1414;
+}
+
+/* Meta data (owner and created date) */
+.project-item .meta {
+    font-size: 0.9rem;
+    color: #1e1b1b;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Loading and Error States */
+.loading, .error {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #777;
+    padding: 20px;
+}
+
+.error {
+    color: red;
 }

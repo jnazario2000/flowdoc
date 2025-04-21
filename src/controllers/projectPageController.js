@@ -1,13 +1,12 @@
 async function createProjectPage(data) {
-   const { title, description, ownerId } = data;
+   const { title, description, ownerId, files} = data;
  
    const result = await projectPagesCollection.insertOne({
      title,
      description,
      ownerId,
      createdAt: new Date(),
-     files: [],
-     todos: [],
+     files: files || [],
      collaborators: [],
    });
  
@@ -18,9 +17,10 @@ async function createProjectPage(data) {
  export const projectPageController = {
      // Create a new Project Page
      async createProjectPage(req, res) {
-         const { title, description, ownerId } = req.body;
+
+         const { title, description, ownerId, files } = req.body;
          try {
-             const projectId = await projectPageService.createProjectPage({ title, description, ownerId });
+             const projectId = await projectPageService.createProjectPage({ title, description, ownerId, files});
              res.status(201).json({ message: 'Project Page created', projectId });
          } catch (error) {
              res.status(500).json({ message: error.message });
