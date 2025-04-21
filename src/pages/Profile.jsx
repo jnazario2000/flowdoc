@@ -5,7 +5,7 @@ function Profile() {
   const [editHistory, setEditHistory] = useState([]);
 
   useEffect(() => {
-    // Replace with your real userId
+    // Hard coded user Id for now
     const userId = "6805a3fbebffbc873b263f3a";
 
     axios.get(`http://localhost:3000/api/editHistories/user/${userId}`)
