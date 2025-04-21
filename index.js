@@ -5,8 +5,16 @@ import userRoutes from './src/routes/userRoutes.js'; // Import the routes for us
 import editHistoryRoutes from './src/routes/editHistoryRoutes.js'; // Import the routes for user edit history
 import projectPageRoutes from './src/routes/projectPage.routes.js'; // added
 
+const cors = require('cors');
 const app = express();
 const port = 3000;
+
+app.use(cors({
+    origin: 'http://localhost:5173',
+
+}));
+
+
 
 // MongoDB connection setup
 const url = 'mongodb://127.0.0.1:27017'; // MongoDB connection URL
