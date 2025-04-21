@@ -144,7 +144,7 @@
 
 .save-button {
     padding: 0.5rem 1rem;
-    background-color: #2ea44f;
+    background-color: #111211;
     color: white;
     border: none;
     border-radius: 6px;
@@ -154,7 +154,7 @@
 }
 
 .save-button:hover {
-    background-color: #2a9146;
+    background-color: #0f100f;
 }
 
 .cancel-button {
