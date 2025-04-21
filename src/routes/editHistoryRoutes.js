@@ -1,44 +1,27 @@
-// import express from 'express';
-// const router = express.Router();
-
-// router.post('/edit-history', async (req, res) => {
-//   const { projectId, editor, changes } = req.body;
-//   const editHistory = req.app.locals.db.collection('editHistory');
-
-//   try {
-//     await editHistory.insertOne({
-//       projectId,
-//       editor,
-//       changes,
-//       timestamp: new Date()
-//     });
-//     res.status(200).json({ message: 'Edit history saved' });
-//   } catch (error) {
-//     res.status(500).json({ error: 'Failed to save edit history' });
-//   }
-// });
-
-// router.get('/edit-history/:projectId', async (req, res) => {
-//   const editHistory = req.app.locals.db.collection('editHistory');
-
-//   try {
-//     const data = await editHistory.find({ projectId: req.params.projectId }).toArray();
-//     res.json(data);
-//   } catch (error) {
-//     res.status(500).json({ error: 'Failed to retrieve edit history' });
-//   }
-// });
-
-// export default router;
-
 import express from 'express';
 import { editHistoryController } from '../controllers/editHistoryController.js';
 
 const router = express.Router();
 
-// Routes
-router.post('/editHistories', editHistoryController.createEditHistory); // Create an edit history
-router.get('/editHistories', editHistoryController.getAllEditHistories); // Get all edit histories
-router.get('/editHistories/user/:userId', editHistoryController.getEditHistoriesByUser); // Get edit histories for a user
+// Create an edit history entry
+router.post('/editHistories', editHistoryController.createEditHistory);
+
+// Get all edit histories
+router.get('/editHistories', editHistoryController.getAllEditHistories);
+
+// Get edit histories by user ID
+router.get('/editHistories/user/:userId', editHistoryController.getEditHistoriesByUser);
+
+// Get edit histories by document/project ID
+router.get('/editHistories/document/:documentId', editHistoryController.getEditHistoriesByDocument);
+
+// Search history by keyword
+router.get('/editHistories/search/:keyword', editHistoryController.searchEditHistoryByKeyword);
+
+// Delete an edit history
+router.delete('/editHistories/:id', editHistoryController.deleteEditHistory);
+
+// Update an edit history
+router.put('/editHistories/:id', editHistoryController.updateEditHistory);
 
 export default router;

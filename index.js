@@ -4,9 +4,14 @@ import { MongoClient } from 'mongodb';
 import userRoutes from './src/routes/userRoutes.js'; // Import the routes for user
 import editHistoryRoutes from './src/routes/editHistoryRoutes.js'; // Import the routes for user edit history
 import projectPageRoutes from './src/routes/projectPage.routes.js'; // added
+import cors from 'cors';
 
 const app = express();
 const port = 3000;
+
+
+app.use(cors()); 
+app.use(bodyParser.json()); // Middleware to parse JSON
 
 // MongoDB connection setup
 const url = 'mongodb://127.0.0.1:27017'; // MongoDB connection URL
@@ -29,24 +34,18 @@ async function connectMongoDB() {
     }
 }
 
-// Middleware to parse JSON requests
-app.use(bodyParser.json());
-
-// Use the user-related routes
-app.use('/api', userRoutes);  // All routes starting with /api will be handled by userRoutes
-app.use('/api', editHistoryRoutes); // Use the editHistoryRoutes for any requests that begin with /api
-
-// Project Pages routes
+//  Use all routes after CORS and JSON parsing
+app.use('/api', userRoutes);  
+app.use('/api', editHistoryRoutes); 
 app.use('/api', projectPageRoutes);
 
-
-// Test route for checking if the server is up
+// Test route
 app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
 
-// Connect to MongoDB before starting the server
+// Start server only after connecting to MongoDB
 app.listen(port, async () => {
-    await connectMongoDB();  // Ensure MongoDB connection before starting the server
+    await connectMongoDB(); 
     console.log(`Server running at http://localhost:${port}/`);
 });

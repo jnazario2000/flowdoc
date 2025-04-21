@@ -1,34 +1,35 @@
-import { Link } from 'react-router-dom';
-
-// client/src/pages/Homepage.jsx
 import React from 'react';
-import './Homepage.css'; //
+import { Link } from 'react-router-dom';
+import './Homepage.css';
 
 function Homepage() {
     return (
         <div className="homepage">
             <nav>
-                <div>FlowDoc</div>
-                <div>
+                <div className="logo">FlowDoc</div>
+                <div className="nav-links">
                     <a href="#">Features</a>
-                    <Link to="/fltech">Sign In</Link>  {/*do /signup to change to other signup */}
+                    <Link to="/profile" className="profile-link">Profile</Link>
+                    <Link to="/fltech">Sign In</Link>
                 </div>
             </nav>
 
             <header>
                 <h1>Home Page</h1>
                 <p>The all in one place to document code! Browse different projects with all kinds of languages and functions.</p>
+
                 <Link to="/pages" className="browse-projects-button">
                     Browse Projects
                 </Link>
+
                 <Link to="/Project" className="create-projects-button">
                     Create Projects
                 </Link>
-
             </header>
 
-            {/* We are not a public website anymore, so all of the features for standing out and differentiating ourselves are thrown away */}
-            {/*<section>
+            {/* You can uncomment the below sections if needed later */}
+            {/*
+            <section>
                 <h2>Most Popular</h2>
                 <div className="document-icons">
                     <div className="doc-icon">📄</div>

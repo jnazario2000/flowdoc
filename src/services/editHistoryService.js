@@ -1,40 +1,77 @@
 import { editHistoriesCollection } from '../models/db.js';
-import { ObjectId } from 'mongodb'; // Needed for userId
+import { ObjectId } from 'mongodb';
 
 export const editHistoryService = {
-    // Create a new edit history record
-    async createEditHistory({ userId, documentId, changes, timestamp }) {
-        try {
-            const result = await editHistoriesCollection.insertOne({
-                userId: new ObjectId(userId), // Link to User
-                documentId,
-                changes,    // Could be a description or object of changes
-                timestamp: timestamp || new Date(), // Default to now if not provided
-            });
-            return result.insertedId;
-        } catch (error) {
-            throw new Error('Error inserting edit history');
-        }
-    },
+  async createEditHistory({ userId, documentId, changes, timestamp }) {
+    try {
+      const result = await editHistoriesCollection.insertOne({
+        userId: new ObjectId(userId),
+        documentId,
+        changes,
+        timestamp: timestamp || new Date(),
+      });
+      return result.insertedId;
+    } catch (error) {
+      throw new Error('Error inserting edit history');
+    }
+  },
 
-    // Get edit histories for a specific user
-    async getEditHistoriesByUser(userId) {
-        try {
-            const histories = await editHistoriesCollection.find({
-                userId: new ObjectId(userId)
-            }).toArray();
-            return histories;
-        } catch (error) {
-            throw new Error('Error fetching edit histories');
-        }
-    },
+  async getAllEditHistories() {
+    try {
+      return await editHistoriesCollection.find().toArray();
+    } catch (error) {
+      throw new Error('Error fetching all edit histories');
+    }
+  },
 
-    // Optional: Get all edit histories
-    async getAllEditHistories() {
-        try {
-            return await editHistoriesCollection.find().toArray();
-        } catch (error) {
-            throw new Error('Error fetching all edit histories');
-        }
-    },
+  async getEditHistoriesByUser(userId) {
+    try {
+      return await editHistoriesCollection.find({
+        userId: new ObjectId(userId)
+      }).toArray();
+    } catch (error) {
+      throw new Error('Error fetching edit histories by user');
+    }
+  },
+
+  async getEditHistoriesByDocument(documentId) {
+    try {
+      return await editHistoriesCollection.find({
+        documentId: documentId
+      }).toArray();
+    } catch (error) {
+      throw new Error('Error fetching edit histories by document');
+    }
+  },
+
+  async searchByKeyword(keyword) {
+    try {
+      return await editHistoriesCollection.find({
+        changes: { $regex: keyword, $options: 'i' }
+      }).toArray();
+    } catch (error) {
+      throw new Error('Error searching edit histories');
+    }
+  },
+
+  async deleteEditHistory(id) {
+    try {
+      const result = await editHistoriesCollection.deleteOne({ _id: new ObjectId(id) });
+      return result.deletedCount > 0;
+    } catch (error) {
+      throw new Error('Error deleting edit history');
+    }
+  },
+
+  async updateEditHistory(id, updates) {
+    try {
+      const result = await editHistoriesCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updates }
+      );
+      return result.modifiedCount > 0;
+    } catch (error) {
+      throw new Error('Error updating edit history');
+    }
+  }
 };

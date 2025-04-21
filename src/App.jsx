@@ -9,7 +9,7 @@ import Project from './pages/Project';
 import FloridaTech from './pages/FloridaTech';
 //import ProjectPages from './pages/ProjectPages.jsx';  doesn't exist yet
 import RepositoryPage from './pages/RepositoryPage';
-
+import Profile from './pages/Profile'; // Import the Profile page
 
 function App() {
     return (
@@ -20,8 +20,9 @@ function App() {
             <Route path="/fltech" element={<FloridaTech />} />
             {/*<Route path="/pages" element={<ProjectPages/>} />*/}
             <Route path="/repository" element={<RepositoryPage/>} />
+            <Route path="/profile" element={<Profile />} /> {/* Added route for Profile page */}
         </Routes>
     );
 }
 
-export default App
+export default App;
