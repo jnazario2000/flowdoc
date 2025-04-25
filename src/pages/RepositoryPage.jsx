@@ -8,7 +8,7 @@ function ProjectPage() {
 
     const [repoInfo, setRepoInfo] = useState(initialRepoInfo || {
         name: 'Sample Project',
-        description: ''
+        description: 'Sample Description'
     });
     const [files, setFiles] = useState(initialFiles || []);
     const [isEditing, setIsEditing] = useState(false);
@@ -60,13 +60,13 @@ function ProjectPage() {
                                 name="name"
                                 value={repoInfo.name}
                                 onChange={handleInputChange}
-                                className="edit-input"
+                                className="edit-repo-input"
                             />
                             <textarea
-                                name="introduction"
+                                name="description"
                                 value={repoInfo.description}
                                 onChange={handleInputChange}
-                                className="edit-textarea"
+                                className="edit-repo-description"
                                 placeholder="Add project introduction"
                             />
                         </>

@@ -173,7 +173,7 @@
 }
 
 /* Edit Mode Inputs */
-.edit-input {
+.edit-repo-input {
     width: 100%;
     padding: 0.5rem 0.75rem;
     font-size: 1.8rem;
@@ -181,10 +181,10 @@
     margin-bottom: 1rem;
     border: 1px solid #d1d5da;
     border-radius: 6px;
-    color: #d3dce4;
+    color: #101213;
 }
 
-.edit-textarea {
+.edit-repo-description {
     width: 100%;
     padding: 0.75rem;
     min-height: 100px;
@@ -194,7 +194,7 @@
     font-family: inherit;
     font-size: 1rem;
     line-height: 1.5;
-    color: #eff2f4;
+    color: #171a1b;
 }
 
 /* Cell Editing */

@@ -43,7 +43,7 @@ function ProjectPagesList() {
                             <p className="description">{project.description}</p>
                             <div className="meta">
 
-                                <span>Owner: {project.ownerId?.toString() || 'Unknown'}</span>
+                                {/*<span>Owner: {project.ownderID?.toString() || 'Unknown'}</span>*/}
                                 <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
                             </div>
                         </Link>

@@ -9,6 +9,10 @@ function GitHubFileExplorer() {
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+
     // goes into github and gets repo info and files
     const fetchRepoData = async () => {
         try {
@@ -72,14 +76,26 @@ function GitHubFileExplorer() {
 
     return (
         <div className="explorer-container">
-            <h1 className="header">GitHub Repository Explorer</h1>
+            <h1 className="header">Create Project</h1>
             <p className="description">
-                Enter a GitHub repository URL to create a new project
+                Enter the following to create a new project
             </p>
 
-            <div className="input-container">
+            <div className="repo-input-container">
                 <input
-                    className="repo-input"
+                    className="repo-input-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Project Title"
+                />
+                <input
+                    className="repo-input-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Project Description"
+                />
+                <input
+                    className="repo-input-github"
                     value={repoUrl}
                     onChange={(e) => setRepoUrl(e.target.value)}
                     placeholder="https://github.com/owner/repository"
