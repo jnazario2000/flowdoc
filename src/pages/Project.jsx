@@ -28,13 +28,10 @@ function GitHubFileExplorer() {
             const repoData = await repoResponse.json();
 
             const files = await fetchFiles(owner, repo);
-            await axios.post('http://localhost:3000/api/project-pages', {
-                title: repoData.name,
-                description: repoData.description,
-                files: files,
-            });
 
-            navigate('/repository', {
+
+            // goes to a new page to display repo info
+            navigate('/repositorypage', {
                 state: {
                     repoInfo: {
                         name: repoData.name,
@@ -51,6 +48,7 @@ function GitHubFileExplorer() {
         }
     };
     // fetches the files and adds the data
+    // uses recursion to keep adding files
     const fetchFiles = async (owner, repo, urlPath = '') => {
         const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${urlPath}`;
         const response = await fetch(apiUrl);
@@ -73,7 +71,7 @@ function GitHubFileExplorer() {
 
         return fetchedFiles;
     };
-
+    // display for creating a project paired with project.css
     return (
         <div className="explorer-container">
             <h1 className="header">Create Project</h1>

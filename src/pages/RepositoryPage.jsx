@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import './RepositoryPage.css';
+import axios from 'axios';
+
+// This is what's displayed after you create project, shows the list of everything and allows you to edit
+// before you add your project to the list of projects
 
 function ProjectPage() {
     const location = useLocation();
     const { repoInfo: initialRepoInfo, files: initialFiles } = location.state || {};
+
+    // fetches repo data from github on previous page
 
     const [repoInfo, setRepoInfo] = useState(initialRepoInfo || {
         name: 'Sample Project',
@@ -13,6 +19,7 @@ function ProjectPage() {
     const [files, setFiles] = useState(initialFiles || []);
     const [isEditing, setIsEditing] = useState(false);
 
+    // error if no data
     if (!repoInfo) {
         return (
             <div className="project-container">
@@ -20,7 +27,7 @@ function ProjectPage() {
             </div>
         );
     }
-
+    // handles any changes made
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setRepoInfo(prev => ({
@@ -28,7 +35,7 @@ function ProjectPage() {
             [name]: value
         }));
     };
-
+    // used for displaying last edited but not really needed honestly
     const getLastEditTime = (dateString) => {
         if (!dateString) return 'Just now';
         const date = new Date(dateString);
@@ -36,8 +43,8 @@ function ProjectPage() {
         const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
         return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
     };
-
-    const handleSave = () => {
+    // when save button is clicked, updates what the user changed
+    const handleSave = async () => {
         const updatedFiles = files.map(file => ({
             ...file,
             lastEdited: new Date().toISOString()
@@ -45,7 +52,7 @@ function ProjectPage() {
         setFiles(updatedFiles);
         setIsEditing(false);
     };
-
+    // displays the project information and allows changes
     return (
         <div className="project-container">
             <header className="project-header">

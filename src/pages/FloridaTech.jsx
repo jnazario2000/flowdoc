@@ -45,7 +45,7 @@ function Signin() {
                 password
             });
 
-            localStorage.setItem('authToken', response.data.token);
+            //localStorage.setItem('authToken', response.data.token);
             navigate('/');
         } catch (err) {
             setApiStatus('failed');

@@ -1,4 +1,4 @@
-/* ProjectList.css */
+/* ProjectPages.css */
 
 /* Container for the entire list */
 .project-list-container {
@@ -70,4 +70,13 @@ h2 {
 
 .error {
     color: red;
+}
+.search-bar {
+    padding: 8px 12px;
+    margin-bottom: 16px;
+    width: 100%;
+    max-width: 400px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 1rem;
 }
