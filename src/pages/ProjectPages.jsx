@@ -58,12 +58,13 @@ function ProjectPagesList() {
             <ul className="project-list">
                 {filteredProjects.map(project => (
                     <li key={project._id} className="project-item">
-                        <Link to={`/repository`} state={{repoInfo: project, description: project.description, files: project.files}}>
+                        <Link
+                            to="/displayproject"
+                            state={{githubUrl: project.githubUrl || "https://github.com/MadryLab/modeldiff"}}
+                        >
                             <h3>{project.title}</h3>
                             <p className="description">{project.description}</p>
                             <div className="meta">
-
-                                {/*<span>Owner: {project.ownderID?.toString() || 'Unknown'}</span>*/}
                                 <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
                             </div>
                         </Link>

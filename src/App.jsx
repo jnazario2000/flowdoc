@@ -12,7 +12,8 @@ import FloridaTech from './pages/FloridaTech';
 import ProjectPages from './pages/ProjectPages.jsx';
 import RepositoryPage from './pages/RepositoryPage';
 import Profile from './pages/Profile'; //
-
+import DisplayProject from './pages/DisplayProject.jsx'
+import DocumentPage from './pages/DocumentPage.jsx'
 function App() {
     return (
         <Routes>
@@ -20,9 +21,13 @@ function App() {
             <Route path="/Signin" element={<Signin />} /> {/* Route to sign in*/}
             <Route path= "/Project" element={<Project />} /> {/* Route to sign make project*/}
             <Route path="/fltech" element={<FloridaTech />} /> {/* Route to fltech page (don't think we are using)*/}
-            *<Route path="/browseprojects" element={<ProjectPages/>} /> {/* Route to browse projects*/}
-            <Route path="/repositorypage" element={<RepositoryPage/>} /> {/* Route to change the project before displayed*/}
-            <Route path="/profile" element={<Profile />} />  {/* Route to get to your porfile*/}
+            <Route path="/browseprojects" element={<ProjectPages/>} /> {/* Route to browse projects*/}
+            <Route path="/repositorypage/:id" element={<RepositoryPage />} />
+            <Route path="/profile" element={<Profile />} />  {/* Route to get to your profile*/}
+            <Route path="/displayproject" element={<DisplayProject />} />  {/* Route to get to your test project*/}
+            <Route path="/documentpage/:owner/:repo/*" element={<DocumentPage />} />
+
+
         </Routes>
     );
 }

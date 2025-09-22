@@ -1,0 +1,43 @@
+/* Container for the whole test project page */
+.testproject-container {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* Header with title + repo info */
+.testproject-header {
+    margin-bottom: 1rem;
+}
+
+/* Files section pushed down */
+.testproject-files {
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid #ddd;
+    padding-top: 1rem;
+}
+
+/* Each file row */
+.testproject-files li {
+    list-style: none;
+    margin: 0.5rem 0;
+}
+
+/* Make the buttons look like plain text links */
+.testproject-files button {
+    border: none;
+    background: none;
+    font-size: 1rem;
+    color: #1c1d1e;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+}
+
+/* Hover effect */
+.testproject-files button:hover {
+    text-decoration: underline;
+    color: #51494a;
+}
