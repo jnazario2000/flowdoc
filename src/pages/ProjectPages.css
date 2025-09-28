@@ -80,3 +80,8 @@ h2 {
     border-radius: 6px;
     font-size: 1rem;
 }
+
+.project-list-container {
+    cursor: default;
+    user-select: none;
+}

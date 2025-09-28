@@ -1,9 +1,9 @@
 import express from 'express';
 import bodyParser from 'body-parser'; // For parsing JSON data
-import { MongoClient } from 'mongodb';
-import userRoutes from './src/routes/userRoutes.js'; // Import the routes for user
-import editHistoryRoutes from './src/routes/editHistoryRoutes.js'; // Import the routes for user edit history
-import projectPageRoutes from './src/routes/projectPage.routes.js'; // added
+import { MongoClient } from 'mongodb'
+import userRoutes from './routes/userRoutes.js'; // Import the routes for user
+import editHistoryRoutes from './routes/editHistoryRoutes.js'; // Import the routes for user edit history
+import projectPageRoutes from './routes/projectPage.routes.js'; // added
 import cors from 'cors';
 
 const app = express();

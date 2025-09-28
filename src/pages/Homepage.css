@@ -1,8 +1,10 @@
+/* The spacing "FlowDoc" text in the homepage*/
 nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
+    padding: 10px;
+    
 }
 
 .logo {
@@ -10,10 +12,14 @@ nav {
     font-size: 20px;
 }
 
+/* Positioning of Features, Profile, and Sign In links on the homepage */
 .nav-links a {
-    margin: 0 10px;
+    margin: 20px;
     text-decoration: none;
     color: black;
+}
+.nav-links {
+    margin-right: 50px;
 }
 
 
@@ -24,7 +30,8 @@ nav {
 
 header {
     text-align: left;
-    padding: 50px 20px;
+    position: relative;
+    top: 0;
 }
 
 button {
@@ -45,12 +52,6 @@ button.secondary {
     justify-content: center;
     gap: 20px;
     font-size: 50px;
-}
-
-.collaborators {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
 }
 
 .card {
@@ -95,4 +96,18 @@ button.secondary {
 
 .create-projects-button:hover {
     background-color: #303530;
+}
+
+.homepage h1,
+.homepage p,
+.homepage a,
+.homepage div {
+  cursor: default;
+  user-select: none;
+}
+
+/* Optional: keep pointer cursor for interactive buttons only */
+.browse-projects-button,
+.create-projects-button {
+  cursor: pointer;
 }
