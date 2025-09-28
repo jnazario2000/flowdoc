@@ -1,77 +1,36 @@
-import { editHistoriesCollection } from '../models/db.js';
-import { ObjectId } from 'mongodb';
+import { state } from "../models/db.js";
+import { ObjectId } from "mongodb";
 
-export const editHistoryService = {
-  async createEditHistory({ userId, documentId, changes, timestamp }) {
-    try {
-      const result = await editHistoriesCollection.insertOne({
-        userId: new ObjectId(userId),
-        documentId,
-        changes,
-        timestamp: timestamp || new Date(),
-      });
-      return result.insertedId;
-    } catch (error) {
-      throw new Error('Error inserting edit history');
-    }
-  },
+export async function recordEdit({ docId, authorId, content, note }) {
+  const now = new Date();
+  const payload = {
+    docId: new ObjectId(docId),
+    authorId: new ObjectId(authorId),
+    content,
+    note: note || null,
+    createdAt: now,
+  };
 
-  async getAllEditHistories() {
-    try {
-      return await editHistoriesCollection.find().toArray();
-    } catch (error) {
-      throw new Error('Error fetching all edit histories');
-    }
-  },
+  const res = await state.editHistories.insertOne(payload);
 
-  async getEditHistoriesByUser(userId) {
-    try {
-      return await editHistoriesCollection.find({
-        userId: new ObjectId(userId)
-      }).toArray();
-    } catch (error) {
-      throw new Error('Error fetching edit histories by user');
-    }
-  },
+  // keep the document head in sync
+  await state.documents.updateOne(
+    { _id: new ObjectId(docId) },
+    { $set: { content, updatedBy: new ObjectId(authorId), updatedAt: now } }
+  );
 
-  async getEditHistoriesByDocument(documentId) {
-    try {
-      return await editHistoriesCollection.find({
-        documentId: documentId
-      }).toArray();
-    } catch (error) {
-      throw new Error('Error fetching edit histories by document');
-    }
-  },
+  return { _id: res.insertedId, createdAt: now };
+}
 
-  async searchByKeyword(keyword) {
-    try {
-      return await editHistoriesCollection.find({
-        changes: { $regex: keyword, $options: 'i' }
-      }).toArray();
-    } catch (error) {
-      throw new Error('Error searching edit histories');
-    }
-  },
+export async function listEdits({ docId, limit = 20, skip = 0 }) {
+  return state.editHistories
+    .find({ docId: new ObjectId(docId) })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(Math.min(limit, 100))
+    .toArray();
+}
 
-  async deleteEditHistory(id) {
-    try {
-      const result = await editHistoriesCollection.deleteOne({ _id: new ObjectId(id) });
-      return result.deletedCount > 0;
-    } catch (error) {
-      throw new Error('Error deleting edit history');
-    }
-  },
-
-  async updateEditHistory(id, updates) {
-    try {
-      const result = await editHistoriesCollection.updateOne(
-        { _id: new ObjectId(id) },
-        { $set: updates }
-      );
-      return result.modifiedCount > 0;
-    } catch (error) {
-      throw new Error('Error updating edit history');
-    }
-  }
-};
+export async function getEditById(editId) {
+  return state.editHistories.findOne({ _id: new ObjectId(editId) });
+}

@@ -1,64 +1,36 @@
-// this should handle interactions with the database and data processing
-import { usersCollection } from '../models/db.js';
+import { state } from '../models/db.js';
+import { ObjectId } from 'mongodb';
+
+async function getAllUsers() {
+  return state.users.find({}).toArray();
+}
+
+async function getUserById(id) {
+  return state.users.findOne({ _id: new ObjectId(id) });
+}
+
+async function createUser({ username, email, name }) {
+  if (!username || !email) throw new Error('username and email are required');
+  const now = new Date();
+  const r = await state.users.insertOne({ username, email, name: name ?? '', createdAt: now, updatedAt: now });
+  return r.insertedId;
+}
+
+async function updateUser(id, updates) {
+  const $set = { ...updates, updatedAt: new Date() };
+  const r = await state.users.updateOne({ _id: new ObjectId(id) }, { $set });
+  return r.matchedCount > 0;
+}
+
+async function deleteUser(id) {
+  const r = await state.users.deleteOne({ _id: new ObjectId(id) });
+  return r.deletedCount > 0;
+}
 
 export const userService = {
-    // Create a new user
-    async createUser({ username, email, name }) {
-        try {
-            // Create a new user document
-            const createdAt = new Date();  // Get current date and time
-            const result = await usersCollection.insertOne({
-                username,
-                email,
-                name,
-                created_at: createdAt
-            });
-            return result.insertedId; // Return the user ID
-        } catch (error) {
-            throw new Error('Error inserting new user');
-        }
-    },
-
-    // Get all users
-    async getAllUsers() {
-        try {
-            const users = await usersCollection.find().toArray();
-            return users;
-        } catch (error) {
-            throw new Error('Error fetching users from database');
-        }
-    },
-
-    // Get a user by ID
-    async getUserById(userId) {
-        try {
-            const user = await usersCollection.findOne({ _id: userId });
-            return user;
-        } catch (error) {
-            throw new Error('Error finding user');
-        }
-    },
-
-    // Update user information
-    async updateUser(userId, updates) {
-        try {
-            const result = await usersCollection.updateOne(
-                { _id: userId },
-                { $set: updates }
-            );
-            return result.modifiedCount > 0;
-        } catch (error) {
-            throw new Error('Error updating user');
-        }
-    },
-
-    // Delete a user by ID
-    async deleteUser(userId) {
-        try {
-            const result = await usersCollection.deleteOne({ _id: userId });
-            return result.deletedCount > 0;
-        } catch (error) {
-            throw new Error('Error deleting user');
-        }
-    }
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  deleteUser,
 };
