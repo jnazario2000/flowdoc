@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Project.css';
-import axios from 'axios'; // (kept; not used, but you said no major changes)
 
 function GitHubFileExplorer() {
   const [repoUrl, setRepoUrl] = useState('');
@@ -11,12 +10,19 @@ function GitHubFileExplorer() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [token, setToken] = useState(''); // <-- NEW: GitHub token state
 
   // robust parse: https://github.com/<owner>/<repo>[.git][...]
   function parseOwnerRepo(url) {
     if (!url) return null;
     const m = url.trim().match(/github\.com\/([^/]+)\/([^/?#]+)(?:\.git)?/i);
     return m ? { owner: m[1], repo: m[2] } : null;
+  }
+
+  // helper: fetch with token if provided
+  async function fetchWithAuth(url) {
+    const headers = token ? { Authorization: `token ${token}` } : {};
+    return fetch(url, { headers });
   }
 
   // goes into github and gets repo info and files
@@ -30,8 +36,8 @@ function GitHubFileExplorer() {
       const { owner, repo } = parsed;
       const repoKey = `${owner}/${repo}`;
 
-      const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-      if (!repoResponse.ok) throw new Error("Failed to fetch repository info.");
+      const repoResponse = await fetchWithAuth(`https://api.github.com/repos/${owner}/${repo}`);
+      if (!repoResponse.ok) throw new Error(`Failed to fetch repository info. (status ${repoResponse.status})`);
       const repoData = await repoResponse.json();
 
       const files = await fetchFiles(owner, repo);
@@ -45,7 +51,7 @@ function GitHubFileExplorer() {
             githubUrl: repoUrl,                 // <-- pass url so repoKey can also be derived there
           },
           repoKey,                               // <-- IMPORTANT: owner/repo for the editor route
-          files: files
+          files: files,
         }
       });
 
@@ -57,10 +63,9 @@ function GitHubFileExplorer() {
   };
 
   // fetches the files and adds the data
-  // uses recursion to keep adding files
   const fetchFiles = async (owner, repo, urlPath = '') => {
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${urlPath}`;
-    const response = await fetch(apiUrl);
+    const response = await fetchWithAuth(apiUrl);
     if (!response.ok) throw new Error(`GitHub API ${response.status}`);
     const data = await response.json();
     const fetchedFiles = [];
@@ -72,7 +77,7 @@ function GitHubFileExplorer() {
       } else {
         fetchedFiles.push({
           name: item.name,
-          path: item.path,           // repo-relative (what we want)
+          path: item.path,
           download_url: item.download_url,
           size: item.size,
         });
@@ -82,48 +87,55 @@ function GitHubFileExplorer() {
     return fetchedFiles;
   };
 
-  // display for creating a project paired with project.css
+  // display for creating a project
   return (
-    <div className="explorer-container">
-      <h1 className="header">Create Project</h1>
-      <p className="description">
-        Enter the following to create a new project
-      </p>
+      <div className="explorer-container">
+        <h1 className="header">Create Project</h1>
+        <p className="description">
+          Enter the following to create a new project
+        </p>
 
-      <div className="repo-input-container">
-        <input
-          className="repo-input-title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Project Title"
-        />
-        <input
-          className="repo-input-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Project Description"
-        />
-        <input
-          className="repo-input-github"
-          value={repoUrl}
-          onChange={(e) => setRepoUrl(e.target.value)}
-          placeholder="https://github.com/owner/repository"
-        />
-        <button
-          className="explore-button"
-          onClick={fetchRepoData}
-          disabled={!repoUrl || isLoading}
-        >
-          {isLoading ? 'Loading...' : 'Create Project'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="error-message">
-          Error: {error}
+        <div className="repo-input-container">
+          <input
+              className="repo-input-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Project Title"
+          />
+          <input
+              className="repo-input-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Project Description"
+          />
+          <input
+              className="repo-input-github"
+              value={repoUrl}
+              onChange={(e) => setRepoUrl(e.target.value)}
+              placeholder="https://github.com/owner/repository"
+          />
+          <input
+              className="repo-input-token"
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="Optional: GitHub Personal Access Token"
+          />
+          <button
+              className="explore-button"
+              onClick={fetchRepoData}
+              disabled={!repoUrl || isLoading}
+          >
+            {isLoading ? 'Loading...' : 'Create Project'}
+          </button>
         </div>
-      )}
-    </div>
+
+        {error && (
+            <div className="error-message">
+              Error: {error}
+            </div>
+        )}
+      </div>
   );
 }
 
