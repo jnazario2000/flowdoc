@@ -16,6 +16,8 @@ export const state = {
   files: null,     // collection for raw file contents (cached from GitHub or seeded)
   anchors: null,   // collection for line-range anchors
   threads: null,   // collection for comment threads
+  projectPagesCollection: null,
+  users: null,
 };
 
 // Call this ONCE during app startup (or lazily the first time you need it).
@@ -33,6 +35,8 @@ export async function connectDB() {
   state.files     = db.collection("files");
   state.anchors   = db.collection("anchors");
   state.threads   = db.collection("threads");
+  state.projectPagesCollection = db.collection("project-pages");
+  state.users     = db.collection("users");
 
   // Ensure (repoKey, path) is unique for documents.
   // partialFilterExpression means the index only applies when fields exist.

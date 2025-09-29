@@ -25,42 +25,60 @@ function GitHubFileExplorer() {
     return fetch(url, { headers });
   }
 
-  // goes into github and gets repo info and files
-  const fetchRepoData = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+const fetchRepoData = async () => {
+  try {
+    setIsLoading(true);
+    setError(null);
 
-      const parsed = parseOwnerRepo(repoUrl);
-      if (!parsed) throw new Error('Please enter a valid GitHub URL like https://github.com/owner/repository');
-      const { owner, repo } = parsed;
-      const repoKey = `${owner}/${repo}`;
+    const parsed = parseOwnerRepo(repoUrl);
+    if (!parsed) throw new Error('Please enter a valid GitHub URL like https://github.com/owner/repository');
+    const { owner, repo } = parsed;
+    const repoKey = `${owner}/${repo}`;
 
-      const repoResponse = await fetchWithAuth(`https://api.github.com/repos/${owner}/${repo}`);
-      if (!repoResponse.ok) throw new Error(`Failed to fetch repository info. (status ${repoResponse.status})`);
-      const repoData = await repoResponse.json();
+    const repoResponse = await fetchWithAuth(`https://api.github.com/repos/${owner}/${repo}`);
+    if (!repoResponse.ok) throw new Error(`Failed to fetch repository info. (status ${repoResponse.status})`);
+    const repoData = await repoResponse.json();
 
-      const files = await fetchFiles(owner, repo);
+    const files = await fetchFiles(owner, repo);
 
-      // goes to a new page to display repo info
-      navigate('/repositorypage', {
-        state: {
-          repoInfo: {
-            name: title || repoData.name || repo,
-            description: description || repoData.description || '',
-            githubUrl: repoUrl,                 // <-- pass url so repoKey can also be derived there
-          },
-          repoKey,                               // <-- IMPORTANT: owner/repo for the editor route
-          files: files,
-        }
-      });
+    // Save the project to DB
+    const saveRes = await fetch('http://localhost:3000/api/project-pages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title,
+        description,
+        githubUrl: repoUrl,
+        ownerId: "67e251f2b3284216506a470f", // <--- this is hard coded for now but change later!!!!-------------------------------------------------------------------------
+      }),
+    });
 
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    if (!saveRes.ok) throw new Error('Failed to create project in database');
+
+    const { insertedId } = await saveRes.json();
+
+    // Navigate to repo page
+    navigate('/repositorypage', {
+      state: {
+        repoInfo: {
+          name: title || repoData.name || repo,
+          description: description || repoData.description || '',
+          githubUrl: repoUrl,
+        },
+        repoKey,
+        files,
+        projectId: insertedId, // pass to next page
+      }
+    });
+
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   // fetches the files and adds the data
   const fetchFiles = async (owner, repo, urlPath = '') => {
