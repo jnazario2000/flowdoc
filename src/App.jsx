@@ -19,8 +19,8 @@ function App() {
       <Route path="/fltech" element={<FloridaTech />} />
       <Route path="/browseprojects" element={<ProjectPages />} />
       <Route path="/repositorypage" element={<RepositoryPage />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/editor" element={<EditorDemo />} />
+        <Route path="/profile" element={<Profile />} />
+      <Route path="/editor/:projectID" element={<EditorDemo />} />
     </Routes>
   );
 }

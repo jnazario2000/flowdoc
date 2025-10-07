@@ -1,16 +1,16 @@
+// src/pages/ProjectPagesList.jsx
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './ProjectPages.css';
 
-
-// uses api/project-pages to fetch all saved projects to display.
 function ProjectPagesList() {
     const [projectPages, setProjectPages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [filteredProjects, setFilteredProjects] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchProjectPages = async () => {
@@ -24,14 +24,13 @@ function ProjectPagesList() {
                 }
             } catch (err) {
                 setError(err.response?.data?.message || err.message || 'Failed to fetch projects');
-                console.error('Fetch error:', err);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchProjectPages();
     }, []);
+
     useEffect(() => {
         const lower = searchTerm.toLowerCase();
         const filtered = projectPages.filter(p =>
@@ -45,6 +44,14 @@ function ProjectPagesList() {
     if (error) return <div className="error">Error: {error}</div>;
     if (projectPages.length === 0) return <div>No projects found</div>;
 
+    // helper to derive "owner/repo" from githubUrl
+    const deriveRepoKey = (githubUrl) => {
+        if (!githubUrl) return "";
+        const m = githubUrl.match(/github\.com\/([^/]+)\/([^/]+)/i);
+        if (m) return `${m[1]}/${m[2].replace(/\.git$/, "")}`;
+        return "";
+    };
+
     return (
         <div className="project-list-container">
             <h2>Project Pages</h2>
@@ -57,17 +64,28 @@ function ProjectPagesList() {
             />
             <ul className="project-list">
                 {filteredProjects.map(project => (
-                    <li key={project._id} className="project-item">
-                        <Link
-                            to="/displayproject"
-                            state={{githubUrl: project.githubUrl || "https://github.com/MadryLab/modeldiff"}}
-                        >
-                            <h3>{project.title}</h3>
-                            <p className="description">{project.description}</p>
-                            <div className="meta">
-                                <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
-                            </div>
-                        </Link>
+                    <li
+                        key={project._id}
+                        className="project-item"
+                        style={{ cursor: "pointer" }}
+                        onClick={() => navigate('/repositorypage', {
+                            state: {
+                                repoInfo: {
+                                    name: project.title,
+                                    description: project.description,
+                                    githubUrl: project.githubUrl,
+                                },
+                                repoKey: deriveRepoKey(project.githubUrl),
+                                projectId: project._id,
+                                token: project.token
+                            }
+                        })}
+                    >
+                        <h3>{project.title}</h3>
+                        <p className="description">{project.description}</p>
+                        <div className="meta">
+                            <span>Created: {new Date(project.createdAt).toLocaleString()}</span>
+                        </div>
                     </li>
                 ))}
             </ul>

@@ -4,10 +4,11 @@ import { projectPageService } from "../services/projectPageService.js";
 
 // Create a new Project Page
 async function createProjectPage(req, res) {
-  const { title, description, ownerId, files } = req.body || {};
+  const { title, description, ownerId, githubUrl, token, files } = req.body || {};
   try {
     if (!title || !ownerId) return res.status(400).json({ message: "title and ownerId are required" });
-    const projectId = await projectPageService.createProjectPage({ title, description, ownerId, files });
+    const projectId = await projectPageService.createProjectPage({ title, description, ownerId, githubUrl, token,
+      files });
     return res.status(201).json({ message: "Project Page created", projectId });
   } catch (error) {
     return res.status(500).json({ message: error.message });

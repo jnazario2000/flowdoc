@@ -11,7 +11,7 @@ function getCollection() {
 
 
 export const projectPageService = {
-  async createProjectPage({ title, description, githubUrl, ownerId }) {
+  async createProjectPage({ title, description, githubUrl, token, ownerId }) {
   await connectDB();
   const collection = getCollection();
 
@@ -20,6 +20,7 @@ export const projectPageService = {
       title,
       description,
       githubUrl,
+      token,
       ownerId: new ObjectId(ownerId),
       createdAt: new Date(),
       files: [],

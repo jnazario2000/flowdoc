@@ -49,6 +49,7 @@ const fetchRepoData = async () => {
         title,
         description,
         githubUrl: repoUrl,
+        token,
         ownerId: "67e251f2b3284216506a470f", // <--- this is hard coded for now but change later!!!!-------------------------------------------------------------------------
       }),
     });
