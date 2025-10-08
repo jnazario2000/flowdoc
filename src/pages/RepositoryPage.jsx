@@ -1,12 +1,16 @@
 // src/pages/RepositoryPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation, useParams, Link } from "react-router-dom";
 import "./RepositoryPage.css";
 
 export default function RepositoryPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { repoInfo, repoKey, projectId, token } = location.state || {};
+    const params = useParams();
+
+    // Try to get repoKey from multiple sources
+    const { repoInfo, repoKey: stateRepoKey, projectId, token } = location.state || {};
+    const repoKey = stateRepoKey || params.repoKey;
 
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -81,7 +85,23 @@ export default function RepositoryPage() {
     }, [files]);
 
     const openEditor = (filePath) => {
-        navigate(`/editor/${projectId}?path=${encodeURIComponent(filePath)}`);
+        if (!repoKey) {
+            console.error("Cannot open editor: repoKey is missing");
+            alert("Repository information is missing. Please go back and select the repository again.");
+            return;
+        }
+
+        console.log("Opening editor with:", { repoKey, filePath }); // Debug log
+
+        const params = new URLSearchParams({
+            repoKey: repoKey,
+            path: filePath,
+            branch: 'main'
+        });
+
+        const editorUrl = `/editor?${params.toString()}`;
+        console.log("Navigating to:", editorUrl); // Debug log
+        navigate(editorUrl);
     };
 
     // --- UI ---
@@ -92,11 +112,12 @@ export default function RepositoryPage() {
                     <Link to="/" className="back-button">← Back to Home</Link>
                 </div>
                 <div className="header-content">
-                    <h1 className="project-title">{repoInfo?.name}</h1>
-                    <p>{repoInfo?.description}</p>
+                    <h1 className="project-title">{repoInfo?.name || repoKey}</h1>
+                    {repoInfo?.description && <p>{repoInfo.description}</p>}
                     {repoInfo?.githubUrl && (
                         <a href={repoInfo.githubUrl} target="_blank" rel="noreferrer">{repoInfo.githubUrl}</a>
                     )}
+                    {repoKey && <p style={{ fontSize: '0.9em', color: '#666' }}>Repository: {repoKey}</p>}
                 </div>
             </header>
 
