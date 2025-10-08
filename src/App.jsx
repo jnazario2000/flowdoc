@@ -20,7 +20,7 @@ function App() {
       <Route path="/browseprojects" element={<ProjectPages />} />
       <Route path="/repositorypage" element={<RepositoryPage />} />
         <Route path="/profile" element={<Profile />} />
-      <Route path="/editor/:projectID" element={<EditorDemo />} />
+      <Route path="/editor" element={<EditorDemo />} />
     </Routes>
   );
 }
