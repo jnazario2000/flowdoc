@@ -6,12 +6,14 @@
 }
 
 .header {
-    color: #951632;
-    border-bottom: 2px solid #951632;
-    padding-bottom: 10px;
-    width: 480px;
-    justify-self: center;
+  color: #951632;
+  border-bottom: 2px solid #951632;
+  padding-bottom: 10px;
+  padding-top: 40px;   /* add top padding */
+  width: 480px;
+  justify-self: center;
 }
+
 
 .subheader {
     color: #951632;
