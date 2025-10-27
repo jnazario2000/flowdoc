@@ -62,6 +62,13 @@ export default function EditorDemo() {
     setSaveMsg("");
     setSaveErr("");
   }
+  function selectAll() {
+    if (codeLines.length === 0) return;
+    setPickStart(1);
+    setPickEnd(codeLines.length);
+    setSaveMsg("");
+    setSaveErr("");
+  }
 
   function selectedRange() {
     if (pickStart == null || pickEnd == null) return null;
@@ -165,6 +172,15 @@ export default function EditorDemo() {
           />
 
             <div className="btn-row">
+
+              <button
+                  className="link-btn small-btn"
+                  onClick={selectAll}
+                  disabled={codeLines.length === 0}
+              >
+                Select All
+              </button>
+
               <button
                   className={`link-btn ai-btn ${aiGenerating ? "disabled" : ""}`}
                   onClick={generateWithAI}
