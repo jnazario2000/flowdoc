@@ -64,8 +64,11 @@ export default function EditorPage() {
       StarterKit,
       TipTapLink.configure({
         openOnClick: false,
+        linkOnPaste: false,
         HTMLAttributes: {
           class: 'anchor-link',
+          rel: 'noopener noreferrer nofollow',
+          target: null,
         },
       }),
       Placeholder.configure({
@@ -77,6 +80,16 @@ export default function EditorPage() {
       const json = editor.getJSON()
       setDocumentContent(json)
       saveDocument(json)
+    },
+    editorProps: {
+      handleClick: (view, pos, event) => {
+        // Let our custom handler deal with anchor links
+        const { target } = event
+        if (target instanceof HTMLElement && target.closest('a.anchor-link')) {
+          return true // Handled by our custom handler
+        }
+        return false
+      },
     },
   })
 
@@ -352,28 +365,39 @@ export default function EditorPage() {
 
   // Handle anchor link click
   const handleAnchorClick = useCallback((e) => {
-    const link = e.target.closest('a')
-    if (link && link.href.includes('#anchor:')) {
+    // Check if the click target is a link or within a link
+    const link = e.target.closest('a.anchor-link')
+    
+    if (link) {
+      // Prevent default navigation
       e.preventDefault()
-      const anchorData = link.href.split('#anchor:')[1]
-      const [file, range] = anchorData.split(':')
-      const [start, end] = range.split('-').map(Number)
+      e.stopPropagation()
       
-      // Switch to the code file if different
-      if (file !== selectedCodeFile) {
-        setSelectedCodeFile(file)
-      }
+      const href = link.getAttribute('href')
       
-      // Highlight the lines
-      setHighlightedLines({ start, end })
-      
-      // Scroll to the line (optional)
-      setTimeout(() => {
-        const lineElement = document.querySelector(`[data-line="${start}"]`)
-        if (lineElement) {
-          lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (href && href.includes('#anchor:')) {
+        const anchorData = href.split('#anchor:')[1]
+        const [file, range] = anchorData.split(':')
+        const [start, end] = range.split('-').map(Number)
+        
+        console.log('Anchor clicked:', { file, start, end })
+        
+        // Switch to the code file if different
+        if (file && file !== selectedCodeFile) {
+          setSelectedCodeFile(file)
         }
-      }, 100)
+        
+        // Highlight the lines
+        setHighlightedLines({ start, end })
+        
+        // Scroll to the line after a short delay to ensure code is loaded
+        setTimeout(() => {
+          const lineElement = document.querySelector(`[data-line="${start}"]`)
+          if (lineElement) {
+            lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+        }, 300)
+      }
     }
   }, [selectedCodeFile])
 
@@ -417,7 +441,7 @@ export default function EditorPage() {
   const codeLines = (codeContent || '').split('\n')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }} onClick={handleAnchorClick}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       {/* Header */}
       <div style={{ 
         padding: '1rem', 
@@ -520,7 +544,9 @@ export default function EditorPage() {
                 <p>Select a documentation file from the dropdown above to start editing</p>
               </div>
             ) : editor ? (
-              <EditorContent editor={editor} />
+              <div onClick={handleAnchorClick}>
+                <EditorContent editor={editor} />
+              </div>
             ) : (
               <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.6 }}>
                 <p>Loading editor...</p>
