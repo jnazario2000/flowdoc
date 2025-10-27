@@ -157,3 +157,37 @@
 .code-src .sel {
   background: #e0f2fe;         /* highlight selection */
 }
+/* Buttons */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-btn {
+  background: #111212 ;
+  border-color: #91806a;
+}
+
+.success-text {
+  color: #27b910;
+}
+
+/* Selected range text in header */
+.selected-range {
+  margin-left: 10px;
+  color: #2563eb;
+}
+
+/* Code lines and gutter interactivity */
+.line-num {
+  cursor: pointer;
+}
+
+.code-line {
+  cursor: pointer;
+}
+
+.code-line.sel {
+  background: #e0f2fe;
+}
