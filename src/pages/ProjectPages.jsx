@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import './ProjectPages.css';
+import '../styles.css';
 
 function ProjectPagesList() {
     const [projectPages, setProjectPages] = useState([]);

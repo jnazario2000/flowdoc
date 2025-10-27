@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import "./EditHistory.css";
+import "../styles.css";
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || "http://localhost:3000";
 

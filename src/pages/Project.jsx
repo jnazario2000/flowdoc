@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Project.css';
+import '../styles.css';
 
 function GitHubFileExplorer() {
   const [repoUrl, setRepoUrl] = useState('');

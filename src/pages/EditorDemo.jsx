@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import "./EditorDemo.css";
+import "../styles.css";
 
 /** small helper */
 function qs(obj) {

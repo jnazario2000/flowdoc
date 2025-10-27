@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import "./AddEditForm.css";
+import "../styles.css";
 
 const API_BASE = import.meta.env?.VITE_API_BASE_URL || "http://localhost:3000";
 const isObjectId = (s) => /^[a-fA-F0-9]{24}$/.test(s || "");

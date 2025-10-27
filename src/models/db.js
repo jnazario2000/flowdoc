@@ -33,10 +33,11 @@ export async function connectDB() {
   state.db        = db;
   state.documents = db.collection("documents");
   state.files     = db.collection("files");
-  state.anchors   = db.collection("anchors");
+  state.anchors   = db.collection("anchors");  // Legacy - kept for backward compatibility
   state.threads   = db.collection("threads");
   state.projectPagesCollection = db.collection("project-pages");
   state.users     = db.collection("users");
+  state.editHistories = db.collection("editHistories");
 
   // Ensure (repoKey, path) is unique for documents.
   // partialFilterExpression means the index only applies when fields exist.
@@ -48,13 +49,12 @@ export async function connectDB() {
       partialFilterExpression: {
         repoKey: { $exists: true },
         path:    { $exists: true }
-        // If you want to be stricter, consider also checking types:
-        // repoKey: { $type: "string" }, path: { $type: "string" }
       }
     }
   );
 
-  // Speed up anchor queries and prevent duplicates on the same range.
+  // Legacy anchor collection - kept for backward compatibility
+  // New anchors are stored within documents
   await state.anchors.createIndex(
     { repoKey: 1, path: 1, startLine: 1, endLine: 1 },
     {
@@ -64,6 +64,11 @@ export async function connectDB() {
       }
     }
   );
+
+  // Index for edit histories - fast lookups by user and document
+  await state.editHistories.createIndex({ userId: 1, timestamp: -1 });
+  await state.editHistories.createIndex({ documentId: 1, timestamp: -1 });
+  await state.editHistories.createIndex({ repoKey: 1, timestamp: -1 });
 
   console.log(`Mongo connected → db: ${dbName}`);
   return db;

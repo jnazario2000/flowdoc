@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import "./profile.css";
+import { TEST_USER, getCurrentUserId } from "../utils/testUser";
+import "../styles.css";
 
 /**
- * Profile page (no hard auth gate)
- * - Always renders Profile header + buttons.
- * - Loads user from /api/auth/me (if available) or localStorage("flowdoc_user").
+ * Profile page with hardcoded test user
+ * - Always shows test user profile
  * - Edit Profile modal edits name, email, projectName, projectDescription, githubUrl.
- *   - If userId exists -> PUT /api/users/:id
- *   - Else -> save locally (localStorage) so page still works.
- * - View Edit History toggles a panel; if no userId, lets you enter one to fetch.
+ * - View Edit History shows actual edit history from the database
  */
 
 const API_BASE =
@@ -18,35 +16,17 @@ const API_BASE =
 
 export default function Profile() {
   // ---------- USER ----------
-  const [user, setUser] = useState(null);
-  const [userLoading, setUserLoading] = useState(true);
+  // For testing, always use the hardcoded test user
+  const [user, setUser] = useState(TEST_USER);
+  const [userLoading, setUserLoading] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Try session-backed current user
-        const { data } = await axios.get(`${API_BASE}/api/auth/me`, {
-          withCredentials: true,
-        });
-        if (!cancelled) {
-          setUser(data);
-          localStorage.setItem("flowdoc_user", JSON.stringify(data));
-        }
-      } catch {
-        // Fallback to local cache (guest/local profile)
-        const raw = localStorage.getItem("flowdoc_user");
-        if (!cancelled) setUser(raw ? JSON.parse(raw) : null);
-      } finally {
-        if (!cancelled) setUserLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    // Save test user to localStorage for consistency
+    localStorage.setItem("flowdoc_user", JSON.stringify(TEST_USER));
+    setUser(TEST_USER);
   }, []);
 
-  const userId = useMemo(() => user?._id || user?.id || "", [user]);
+  const userId = useMemo(() => getCurrentUserId(), []);
 
   // Header display data with safe fallbacks
   const displayName = user?.name || "Guest";
@@ -71,7 +51,6 @@ export default function Profile() {
     email: "",
     projectName: "",
     projectDescription: "",
-    githubUrl: "",
   });
 
   useEffect(() => {
@@ -81,31 +60,16 @@ export default function Profile() {
         email: user?.email || "",
         projectName: user?.projectName || "",
         projectDescription: user?.projectDescription || "",
-        githubUrl: user?.githubUrl || "",
       });
       setSaveError("");
     }
   }, [editOpen]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const isValidGitHubUrl = (s) => {
-    if (!s) return true; // optional
-    try {
-      const u = new URL(s);
-      return u.hostname === "github.com";
-    } catch {
-      return false;
-    }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
 
     if (!form.name.trim()) {
       setSaveError("Name is required.");
-      return;
-    }
-    if (!isValidGitHubUrl(form.githubUrl)) {
-      setSaveError("GitHub URL must be a valid github.com link.");
       return;
     }
 
@@ -115,7 +79,6 @@ export default function Profile() {
       email: form.email.trim(),
       projectName: form.projectName.trim(),
       projectDescription: form.projectDescription.trim(),
-      githubUrl: form.githubUrl.trim(),
     };
 
     setSaving(true);
@@ -163,15 +126,18 @@ export default function Profile() {
   }, [userId]);
 
   const loadHistory = async () => {
-    if (!historyUserId.trim()) {
-      setHistoryError("Enter a User ID to view history.");
-      return;
-    }
     setHistoryLoading(true);
     setHistoryError("");
     try {
+      const userIdToUse = userId || historyUserId.trim();
+      if (!userIdToUse) {
+        setHistoryError("No user ID available.");
+        setHistoryLoading(false);
+        return;
+      }
+      
       const { data } = await axios.get(
-        `${API_BASE}/api/editHistories/user/${historyUserId.trim()}`,
+        `${API_BASE}/api/editHistories/user/${userIdToUse}`,
         { withCredentials: true }
       );
       setHistory(Array.isArray(data) ? data : []);
@@ -204,6 +170,21 @@ export default function Profile() {
 
   return (
     <main className="profile-page">
+      {/* Back to Home Button */}
+      <div style={{ marginBottom: '1rem' }}>
+        <a href="/" style={{ 
+          display: 'inline-block',
+          padding: '0.5rem 1rem',
+          backgroundColor: '#6c757d',
+          color: 'white',
+          textDecoration: 'none',
+          borderRadius: '4px',
+          fontSize: '0.9em'
+        }}>
+          ← Back to Home
+        </a>
+      </div>
+
       {/* Header card */}
       <section className="profile" data-testid="profile">
         <img className="profile__avatar" src={avatarSrc} alt={`${displayName}'s avatar`} />
@@ -224,42 +205,79 @@ export default function Profile() {
       {/* History panel */}
       {historyOpen && (
         <section className="history">
-          <h2>User Edit History</h2>
-
-          {!userId && (
-            <div className="history__controls">
-              <input
-                className="input"
-                placeholder="Enter User ID to load history"
-                value={historyUserId}
-                onChange={(e) => setHistoryUserId(e.target.value)}
-              />
-              <button className="btn" onClick={loadHistory} disabled={historyLoading}>
-                {historyLoading ? "Loading…" : "Load"}
-              </button>
-            </div>
-          )}
+          <h2>My Edit History</h2>
+          <p style={{ fontSize: '0.9em', opacity: 0.7, marginBottom: '1rem' }}>
+            Showing all document edits for <strong>{user?.name || 'Test User'}</strong>
+          </p>
 
           {historyError && <p className="error">{historyError}</p>}
-          {!historyError && historyLoading && <p>Loading…</p>}
+          {!historyError && historyLoading && <p>Loading edit history…</p>}
           {!historyError && !historyLoading && history.length === 0 && (
-            <p>No edit history found.</p>
+            <div style={{ 
+              padding: '2rem', 
+              textAlign: 'center', 
+              backgroundColor: '#f9f9f9', 
+              borderRadius: '4px',
+              border: '1px dashed #ccc' 
+            }}>
+              <p style={{ margin: 0 }}>
+                No edit history yet. Start editing documents to see your history here!
+              </p>
+            </div>
           )}
           {!historyError && !historyLoading && history.length > 0 && (
-            <ul className="history__list">
-              {history.map((h) => {
-                const ts = h.timestamp || h.createdAt || null;
-                const changesText =
-                  typeof h.changes === "string" ? h.changes : JSON.stringify(h.changes);
-                return (
-                  <li key={h._id} className="history__item">
-                    <div><strong>Document:</strong> {String(h.documentId ?? "—")}</div>
-                    <div><strong>Changes:</strong> {changesText}</div>
-                    <div><strong>Timestamp:</strong> {ts ? new Date(ts).toLocaleString() : "—"}</div>
-                  </li>
-                );
-              })}
-            </ul>
+            <div style={{ marginTop: '1rem' }}>
+              <p style={{ marginBottom: '0.5rem', fontSize: '0.9em', opacity: 0.8 }}>
+                Total edits: <strong>{history.length}</strong>
+              </p>
+              <ul className="history__list" style={{ 
+                maxHeight: '600px', 
+                overflowY: 'auto',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                padding: '0'
+              }}>
+                {history.map((h, index) => {
+                  const ts = h.timestamp || h.createdAt || null;
+                  const changesText = typeof h.changes === "string" ? h.changes : JSON.stringify(h.changes);
+                  const fileName = h.path ? h.path.split('/').pop() : 'Unknown file';
+                  
+                  return (
+                    <li key={h._id || index} className="history__item" style={{
+                      padding: '1rem',
+                      borderBottom: index < history.length - 1 ? '1px solid #eee' : 'none',
+                      listStyle: 'none'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ marginBottom: '0.25rem' }}>
+                            <strong style={{ fontSize: '1.1em' }}>📝 {fileName}</strong>
+                          </div>
+                          <div style={{ fontSize: '0.85em', color: '#666' }}>
+                            <strong>Repository:</strong> {h.repoKey || '—'}
+                          </div>
+                          <div style={{ fontSize: '0.85em', color: '#666' }}>
+                            <strong>Path:</strong> {h.path || '—'}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.85em', color: '#666', textAlign: 'right' }}>
+                          {ts ? new Date(ts).toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <div style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        padding: '0.5rem', 
+                        borderRadius: '4px',
+                        fontSize: '0.9em',
+                        marginTop: '0.5rem'
+                      }}>
+                        <strong>Action:</strong> {h.action || 'edit'} - {changesText}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </section>
       )}
@@ -304,16 +322,6 @@ export default function Profile() {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, projectDescription: e.target.value }))
                   }
-                />
-              </label>
-
-              <label className="form__row">
-                <span>GitHub URL</span>
-                <input
-                  type="url"
-                  placeholder="https://github.com/owner/repo"
-                  value={form.githubUrl}
-                  onChange={(e) => setForm((p) => ({ ...p, githubUrl: e.target.value }))}
                 />
               </label>
 
