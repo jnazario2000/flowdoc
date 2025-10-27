@@ -33,6 +33,10 @@ export default function RepositoryPage() {
     // Edit description state
     const [isEditingDescription, setIsEditingDescription] = useState(false);
     const [editedDescription, setEditedDescription] = useState(repoInfo?.description || '');
+    
+    // Anchor tracking state
+    const [fileAnchorCounts, setFileAnchorCounts] = useState({});
+    const [showOnlyUndocumented, setShowOnlyUndocumented] = useState(false);
 
     // --- helpers ---
     const stripGitHubBlob = (p) => p || "";
@@ -122,6 +126,37 @@ export default function RepositoryPage() {
         loadDocuments();
     }, [repoKey]);
 
+    // Load anchors for all files
+    useEffect(() => {
+        const loadAnchors = async () => {
+            if (!repoKey || documents.length === 0) return;
+            
+            try {
+                // Create a map to count anchors per file
+                const anchorCounts = {};
+                
+                // Go through each document and count anchors by file path
+                for (const doc of documents) {
+                    if (doc.anchors && Array.isArray(doc.anchors)) {
+                        for (const anchor of doc.anchors) {
+                            // The docSpan field contains the file path this anchor points to
+                            const filePath = anchor.docSpan;
+                            if (filePath) {
+                                anchorCounts[filePath] = (anchorCounts[filePath] || 0) + 1;
+                            }
+                        }
+                    }
+                }
+                
+                setFileAnchorCounts(anchorCounts);
+            } catch (err) {
+                console.error('Error loading anchors:', err);
+            }
+        };
+        
+        loadAnchors();
+    }, [repoKey, documents]);
+
     // Build folder structure from files
     const folderStructure = useMemo(() => {
         const structure = {};
@@ -148,7 +183,7 @@ export default function RepositoryPage() {
 
     // Get current folder's files and subfolders
     const currentFolderContent = useMemo(() => {
-        const filesInFolder = folderStructure[currentFolder] || [];
+        let filesInFolder = folderStructure[currentFolder] || [];
         const subfolders = new Set();
         
         // Find immediate subfolders
@@ -163,11 +198,19 @@ export default function RepositoryPage() {
             }
         });
         
+        // Filter for undocumented files if toggle is enabled
+        if (showOnlyUndocumented) {
+            filesInFolder = filesInFolder.filter(file => {
+                const anchorCount = fileAnchorCounts[file.path] || 0;
+                return anchorCount === 0;
+            });
+        }
+        
         return {
             files: filesInFolder,
             folders: Array.from(subfolders).sort()
         };
-    }, [folderStructure, currentFolder]);
+    }, [folderStructure, currentFolder, showOnlyUndocumented, fileAnchorCounts]);
 
     const navigateToFolder = (folderName) => {
         const newPath = currentFolder ? `${currentFolder}/${folderName}` : folderName;
@@ -616,15 +659,29 @@ export default function RepositoryPage() {
                 <section className="files-section">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h2>📂 Repository Files</h2>
-                        {currentFolder && (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <button 
-                                onClick={navigateUp}
+                                onClick={() => setShowOnlyUndocumented(!showOnlyUndocumented)}
                                 className="edit-button"
-                                style={{ padding: '0.4rem 0.8rem' }}
+                                style={{ 
+                                    padding: '0.4rem 0.8rem',
+                                    backgroundColor: showOnlyUndocumented ? '#28a745' : '#f6f8fa',
+                                    color: showOnlyUndocumented ? 'white' : '#24292e',
+                                    borderColor: showOnlyUndocumented ? '#28a745' : '#e1e4e8'
+                                }}
                             >
-                                ⬆️ Up to Parent
+                                {showOnlyUndocumented ? '✓ ' : ''}Show Undocumented Only
                             </button>
-                        )}
+                            {currentFolder && (
+                                <button 
+                                    onClick={navigateUp}
+                                    className="edit-button"
+                                    style={{ padding: '0.4rem 0.8rem' }}
+                                >
+                                    ⬆️ Up to Parent
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {/* Breadcrumb */}
@@ -655,6 +712,7 @@ export default function RepositoryPage() {
                                 <tr>
                                     <th>Name</th>
                                     <th>Size</th>
+                                    <th>Documentation</th>
                                     <th>Last Edited</th>
                                     <th></th>
                                 </tr>
@@ -678,6 +736,7 @@ export default function RepositoryPage() {
                                         </td>
                                         <td>-</td>
                                         <td>-</td>
+                                        <td>-</td>
                                         <td>
                                             <button 
                                                 className="edit-button" 
@@ -694,42 +753,71 @@ export default function RepositoryPage() {
                                 ))}
                                 
                                 {/* Files */}
-                                {currentFolderContent.files.map(file => (
-                                    <tr key={file.path}>
-                                        <td>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                <span style={{ fontSize: '1em' }}>📄</span>
-                                                {file.name}
-                                            </div>
-                                        </td>
-                                        <td>{file.size}</td>
-                                        <td>{since(file.lastEdited)}</td>
-                                        <td>
-                                            <button 
-                                                className="edit-button" 
-                                                onClick={() => {
-                                                    // Set initial code file and open editor
-                                                    const params = new URLSearchParams({
-                                                        repoKey: repoKey,
-                                                        branch: 'main',
-                                                        codeFile: file.path
-                                                    });
-                                                    navigate(`/editor?${params.toString()}`, { 
-                                                        state: { repoKey, repoInfo, initialCodeFile: file.path } 
-                                                    });
-                                                }}
-                                                style={{ padding: '0.4rem 0.8rem' }}
-                                            >
-                                                View
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {currentFolderContent.files.map(file => {
+                                    const anchorCount = fileAnchorCounts[file.path] || 0;
+                                    const hasAnchors = anchorCount > 0;
+                                    
+                                    return (
+                                        <tr key={file.path}>
+                                            <td>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <span style={{ fontSize: '1em' }}>📄</span>
+                                                    {file.name}
+                                                </div>
+                                            </td>
+                                            <td>{file.size}</td>
+                                            <td>
+                                                <div style={{ 
+                                                    display: 'flex', 
+                                                    alignItems: 'center', 
+                                                    gap: '0.5rem',
+                                                    fontSize: '0.9em'
+                                                }}>
+                                                    {hasAnchors ? (
+                                                        <>
+                                                            <span style={{ color: '#28a745', fontSize: '1.2em' }}>✓</span>
+                                                            <span style={{ color: '#28a745', fontWeight: 500 }}>
+                                                                {anchorCount} anchor{anchorCount !== 1 ? 's' : ''}
+                                                            </span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <span style={{ color: '#dc3545', fontSize: '1.2em' }}>○</span>
+                                                            <span style={{ color: '#6c757d', fontStyle: 'italic' }}>
+                                                                Undocumented
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td>{since(file.lastEdited)}</td>
+                                            <td>
+                                                <button 
+                                                    className="edit-button" 
+                                                    onClick={() => {
+                                                        // Set initial code file and open editor
+                                                        const params = new URLSearchParams({
+                                                            repoKey: repoKey,
+                                                            branch: 'main',
+                                                            codeFile: file.path
+                                                        });
+                                                        navigate(`/editor?${params.toString()}`, { 
+                                                            state: { repoKey, repoInfo, initialCodeFile: file.path } 
+                                                        });
+                                                    }}
+                                                    style={{ padding: '0.4rem 0.8rem' }}
+                                                >
+                                                    View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                                 
                                 {currentFolderContent.folders.length === 0 && currentFolderContent.files.length === 0 && (
                                     <tr>
-                                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', opacity: 0.6 }}>
-                                            This folder is empty
+                                        <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', opacity: 0.6 }}>
+                                            {showOnlyUndocumented ? 'No undocumented files in this folder' : 'This folder is empty'}
                                         </td>
                                     </tr>
                                 )}
