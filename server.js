@@ -14,7 +14,13 @@ import editHistoryRoutes from "./src/routes/editHistoryRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// Configure CORS to allow credentials
+app.use(cors({
+  origin: 'http://localhost:5173', // Vite dev server
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 app.use((req, _res, next) => { console.log(`${req.method} ${req.url}`); next(); });
