@@ -1556,7 +1556,147 @@ header {
 }
 
 /* ========================================
-   8. RESPONSIVE STYLES
+   8. PRINT STYLES (PDF Export)
+   ======================================== */
+
+@media print {
+  /* Hide everything except the documentation content */
+  body > div:not(#root),
+  button,
+  select,
+  nav,
+  header,
+  h3,
+  .code-viewer-panel {
+    display: none !important;
+  }
+
+  /* Make the documentation full width */
+  body {
+    margin: 0;
+    padding: 20mm;
+    background: white;
+  }
+
+  #root {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  /* Make the doc editor panel full width and remove borders */
+  .doc-editor-panel {
+    width: 100% !important;
+    border-right: none !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  /* Hide the header section of the doc editor */
+  .doc-editor-panel > div:first-child {
+    display: none !important;
+  }
+
+  /* Show only the editor content */
+  .doc-editor-panel > div:last-child {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Style the TipTap editor content for print */
+  .tiptap {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    margin: 0;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+  }
+
+  .tiptap h1 {
+    font-size: 24pt;
+    margin-top: 0;
+    margin-bottom: 12pt;
+    page-break-after: avoid;
+  }
+
+  .tiptap h2 {
+    font-size: 18pt;
+    margin-top: 16pt;
+    margin-bottom: 8pt;
+    page-break-after: avoid;
+  }
+
+  .tiptap h3 {
+    font-size: 14pt;
+    margin-top: 12pt;
+    margin-bottom: 6pt;
+    page-break-after: avoid;
+  }
+
+  .tiptap p {
+    margin-bottom: 8pt;
+    orphans: 3;
+    widows: 3;
+  }
+
+  .tiptap ul,
+  .tiptap ol {
+    page-break-inside: avoid;
+  }
+
+  .tiptap pre {
+    page-break-inside: avoid;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 10pt;
+  }
+
+  .tiptap code {
+    background-color: #f5f5f5;
+    padding: 2pt 4pt;
+    border: 1px solid #ddd;
+  }
+
+  .tiptap blockquote {
+    page-break-inside: avoid;
+    border-left: 3px solid #666;
+    padding-left: 10pt;
+    margin: 10pt 0;
+  }
+
+  /* Style anchor links for print */
+  .tiptap a.anchor-link {
+    color: #0066cc;
+    text-decoration: underline;
+  }
+
+  .tiptap a.anchor-link::before {
+    content: '🔗 ';
+  }
+
+  /* Add page numbers */
+  @page {
+    margin: 20mm;
+    @bottom-right {
+      content: counter(page);
+    }
+  }
+
+  /* Avoid page breaks in the middle of elements */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+}
+
+/* ========================================
+   9. RESPONSIVE STYLES
    ======================================== */
 
 @media (max-width: 950px) {

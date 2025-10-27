@@ -329,6 +329,96 @@ export default function RepositoryPage() {
         }
     };
 
+    const importFileAsDocument = async (file) => {
+        if (!repoKey) {
+            alert('Repository information is missing');
+            return;
+        }
+
+        // Check if this file is already imported as a document
+        const existingDoc = documents.find(doc => doc.path === file.path);
+        if (existingDoc) {
+            const confirmOpen = confirm(`This file is already imported as a document. Do you want to open it in the editor?`);
+            if (confirmOpen) {
+                openEditor(file.path);
+            }
+            return;
+        }
+
+        try {
+            // Fetch the file content from GitHub
+            const [owner, repo] = repoKey.split('/');
+            const headers = token ? { Authorization: `token ${token}` } : {};
+            const contentRes = await fetch(
+                `https://api.github.com/repos/${owner}/${repo}/contents/${file.path}`,
+                { headers }
+            );
+
+            if (!contentRes.ok) {
+                throw new Error('Failed to fetch file content from GitHub');
+            }
+
+            const contentData = await contentRes.json();
+            
+            // GitHub returns content as base64 encoded
+            let fileContent = '';
+            if (contentData.content) {
+                fileContent = atob(contentData.content);
+            } else if (contentData.download_url) {
+                // Fallback: fetch from download URL
+                const downloadRes = await fetch(contentData.download_url);
+                fileContent = await downloadRes.text();
+            }
+
+            // Determine the document path - keep original extension or convert to .md
+            let docPath = file.path;
+            const isMarkdown = file.path.toLowerCase().endsWith('.md');
+            
+            if (!isMarkdown) {
+                // Ask user if they want to convert to .md
+                const convertToMd = confirm(
+                    `This file is not a Markdown file (.md). Would you like to save it as "${file.path}.md"?\n\n` +
+                    `Click OK to add .md extension, or Cancel to keep original extension.`
+                );
+                if (convertToMd) {
+                    docPath = `${file.path}.md`;
+                }
+            }
+
+            // Create document in database
+            const res = await fetch(`${API}/api/documents`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repoKey,
+                    path: docPath,
+                    body: fileContent,
+                    branch: 'main'
+                })
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to import document');
+            }
+
+            // Reload documents list
+            const docsRes = await fetch(`${API}/api/documents/list?repoKey=${encodeURIComponent(repoKey)}`);
+            if (docsRes.ok) {
+                const docsData = await docsRes.json();
+                setDocuments(docsData.documents || []);
+            }
+
+            // Open in editor
+            alert(`Successfully imported "${file.path}" as documentation!`);
+            openEditor(docPath);
+
+        } catch (err) {
+            console.error('Error importing file:', err);
+            alert('Error importing file: ' + err.message);
+        }
+    };
+
     // To-do list functions
     const addTodo = () => {
         if (!newTodo.trim()) return;
@@ -757,12 +847,29 @@ export default function RepositoryPage() {
                                     const anchorCount = fileAnchorCounts[file.path] || 0;
                                     const hasAnchors = anchorCount > 0;
                                     
+                                    // Check if this file is already imported as a document
+                                    const isImported = documents.some(doc => 
+                                        doc.path === file.path || doc.path === `${file.path}.md`
+                                    );
+                                    
                                     return (
                                         <tr key={file.path}>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                     <span style={{ fontSize: '1em' }}>📄</span>
                                                     {file.name}
+                                                    {isImported && (
+                                                        <span style={{ 
+                                                            fontSize: '0.75em', 
+                                                            backgroundColor: '#17a2b8',
+                                                            color: 'white',
+                                                            padding: '2px 6px',
+                                                            borderRadius: '3px',
+                                                            fontWeight: 500
+                                                        }}>
+                                                            IMPORTED
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </td>
                                             <td>{file.size}</td>
@@ -792,23 +899,39 @@ export default function RepositoryPage() {
                                             </td>
                                             <td>{since(file.lastEdited)}</td>
                                             <td>
-                                                <button 
-                                                    className="edit-button" 
-                                                    onClick={() => {
-                                                        // Set initial code file and open editor
-                                                        const params = new URLSearchParams({
-                                                            repoKey: repoKey,
-                                                            branch: 'main',
-                                                            codeFile: file.path
-                                                        });
-                                                        navigate(`/editor?${params.toString()}`, { 
-                                                            state: { repoKey, repoInfo, initialCodeFile: file.path } 
-                                                        });
-                                                    }}
-                                                    style={{ padding: '0.4rem 0.8rem' }}
-                                                >
-                                                    View
-                                                </button>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button 
+                                                        className="edit-button" 
+                                                        onClick={() => {
+                                                            // Set initial code file and open editor
+                                                            const params = new URLSearchParams({
+                                                                repoKey: repoKey,
+                                                                branch: 'main',
+                                                                codeFile: file.path
+                                                            });
+                                                            navigate(`/editor?${params.toString()}`, { 
+                                                                state: { repoKey, repoInfo, initialCodeFile: file.path } 
+                                                            });
+                                                        }}
+                                                        style={{ padding: '0.4rem 0.8rem' }}
+                                                    >
+                                                        View
+                                                    </button>
+                                                    <button 
+                                                        className="edit-button" 
+                                                        onClick={() => importFileAsDocument(file)}
+                                                        style={{ 
+                                                            padding: '0.4rem 0.8rem',
+                                                            backgroundColor: isImported ? '#6c757d' : '#17a2b8',
+                                                            borderColor: isImported ? '#6c757d' : '#17a2b8',
+                                                            color: 'white',
+                                                            opacity: isImported ? 0.6 : 1
+                                                        }}
+                                                        title={isImported ? "This file is already imported" : "Import this file as an editable documentation file"}
+                                                    >
+                                                        📥 {isImported ? 'Imported' : 'Import'}
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

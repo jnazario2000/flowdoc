@@ -52,6 +52,9 @@ export default function EditorPage() {
   // AI generation
   const [aiGenerating, setAiGenerating] = useState(false)
   
+  // Print/PDF export
+  const [isPrintMode, setIsPrintMode] = useState(false)
+  
   const timer = useRef(null)
   const isDoc = isDocFile(filePath)
 
@@ -342,6 +345,11 @@ export default function EditorPage() {
     }
   }
 
+  // Print/Export as PDF
+  function handlePrint() {
+    window.print()
+  }
+
   // Handle anchor link click
   const handleAnchorClick = useCallback((e) => {
     const link = e.target.closest('a')
@@ -451,7 +459,7 @@ export default function EditorPage() {
       {/* Main content */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Documentation editor (Left side) */}
-        <div style={{ 
+        <div className="doc-editor-panel" style={{ 
           width: '50%', 
           display: 'flex', 
           flexDirection: 'column',
@@ -461,6 +469,24 @@ export default function EditorPage() {
           <div style={{ padding: '1rem', borderBottom: '1px solid #ddd', backgroundColor: '#f5f5f5' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h3 style={{ margin: 0 }}>Documentation Editor</h3>
+              <button
+                onClick={handlePrint}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  backgroundColor: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.85em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem'
+                }}
+                title="Print or export as PDF"
+              >
+                🖨️ Export PDF
+              </button>
             </div>
             <select
               value={selectedDocPath}
@@ -504,7 +530,7 @@ export default function EditorPage() {
         </div>
 
         {/* Code viewer (Right side) */}
-        <div style={{ width: '50%', display: 'flex', flexDirection: 'column' }}>
+        <div className="code-viewer-panel" style={{ width: '50%', display: 'flex', flexDirection: 'column' }}>
           <div style={{ 
             padding: '1rem', 
             borderBottom: '1px solid #ddd',
