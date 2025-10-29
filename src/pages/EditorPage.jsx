@@ -332,7 +332,7 @@ export default function EditorPage() {
 
     setAiGenerating(true)
     try {
-      const r = await fetch('/api/docs/generate', {
+      const r = await fetch(`${API}/api/docs/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: selectedCode }),

@@ -1,9 +1,9 @@
-// import express from "express";
-// import { generateDoc } from "../controllers/AIDocController.js";
+ import express from "express";
+ import { generateDoc } from "../controllers/AIDocController.js";
 
-// const router = express.Router();
+ const router = express.Router();
 
-// // Generate AI documentation for code snippet
-// router.post("/generate", generateDoc);
+ // Generate AI documentation for code snippet
+ router.post("/generate", generateDoc);
 
-// export default router;
+ export default router;
