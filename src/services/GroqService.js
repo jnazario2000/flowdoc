@@ -1,20 +1,20 @@
-// backend/services/groqService.js
+// backend/services/aiDocService.js
+import OpenAI from "openai";
 import Groq from "groq-sdk";
 
-const client = new Groq({
-    apiKey: process.env.GROQ_API_KEY,
-});
+const provider = process.env.AI_PROVIDER?.toLowerCase() || "openai";
 
-/**
- * Generate AI documentation for a code snippet using Groq.
- * Uses GPT-oss-120b model which can be changed under model.
- * Model now is similar to GPT 4
- * @param {string} snippet - The code snippet to summarize.
- * @returns {Promise<string>} - The AI-generated documentation.
- */
-export async function generateAIDoc(snippet) {
-    try {
-        const completion = await client.chat.completions.create({
+let client;
+let generateAIDoc;
+
+if (provider === "groq") {
+    /* ---------------- GROQ PROVIDER ---------------- */
+    const groqClient = new Groq({
+        apiKey: process.env.GROQ_API_KEY,
+    });
+
+    generateAIDoc = async (snippet) => {
+        const completion = await groqClient.chat.completions.create({
             model: "openai/gpt-oss-120b",
             messages: [
                 {
@@ -37,19 +37,47 @@ Provide complete documentation and ensure you finish all sections.`,
                 },
             ],
             temperature: 0.7,
-            max_completion_tokens: 4096,  // Realistic limit for most models
+            max_completion_tokens: 4096,
         });
 
-        const text = completion.choices[0]?.message?.content?.trim() || "No output.";
-        return text;
-    } catch (err) {
-        console.error("Groq API error full details:");
-        if (err.response) {
-            console.error("Status:", err.response.status);
-            console.error("Data:", err.response.data);
-        } else {
-            console.error("Message:", err.message);
-        }
-        throw new Error("Failed to generate AI documentation.");
-    }
+        return completion.choices?.[0]?.message?.content?.trim() || "No output.";
+    };
+} else {
+    /* ---------------- OPENAI PROVIDER ---------------- */
+    const openaiClient = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    generateAIDoc = async (snippet) => {
+        const completion = await openaiClient.chat.completions.create({
+            model: "gpt-4o-mini", // or "gpt-4o"
+            messages: [
+                {
+                    role: "system",
+                    content:
+                        "You are an assistant for code documentation. Provide complete, well-structured documentation with clear sections. Always finish your thoughts completely.",
+                },
+                {
+                    role: "user",
+                    content: `Document this code with a complete analysis. Include:
+1. Overview (2-3 sentences)
+2. Key Features (bullet points)
+3. Important Methods/Functions
+4. Usage Notes
+
+Code to document:
+${snippet}
+
+Provide complete documentation and ensure you finish all sections.`,
+                },
+            ],
+            temperature: 0.7,
+            max_completion_tokens: 4096,
+        });
+
+        return completion.choices?.[0]?.message?.content?.trim() || "No output.";
+    };
 }
+
+/* ---------------- EXPORT ---------------- */
+export { generateAIDoc };
