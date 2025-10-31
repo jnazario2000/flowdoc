@@ -28,13 +28,14 @@ export default function EditorPage() {
   const codeFileFromUrl = sp.get('codeFile')
 
   // Get repository info from location state (passed from RepositoryPage)
-  const { repoInfo, initialCodeFile } = location.state || {}
+  const { repoInfo, initialCodeFile, token: stateToken } = location.state || {}
 
   const [documentContent, setDocumentContent] = useState(null)
   const [anchors, setAnchors] = useState([])
   const [allAnchors, setAllAnchors] = useState([])
   const [status, setStatus] = useState('loading')
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [token, setToken] = useState(stateToken || null)
   
   // Left side documentation selector
   const [availableDocs, setAvailableDocs] = useState([])
@@ -44,6 +45,7 @@ export default function EditorPage() {
   const [selectedCodeFile, setSelectedCodeFile] = useState('')
   const [codeContent, setCodeContent] = useState('')
   const [codeFiles, setCodeFiles] = useState([])
+  const [codeFileSearchTerm, setCodeFileSearchTerm] = useState('')
   const [highlightedLines, setHighlightedLines] = useState({ start: null, end: null })
   const [showAllAnchors, setShowAllAnchors] = useState(false)
   
@@ -277,6 +279,29 @@ export default function EditorPage() {
     }
   }, [editor, documentContent])
 
+  // Fetch token from database if not in state
+  useEffect(() => {
+    async function fetchToken() {
+      if (!token && repoKey) {
+        try {
+          const encodedRepoKey = encodeURIComponent(repoKey)
+          const res = await fetch(`${API}/api/project-pages/by-repo?repoKey=${encodedRepoKey}`)
+          if (res.ok) {
+            const project = await res.json()
+            if (project.token) {
+              setToken(project.token)
+              console.log('Token retrieved from database in EditorPage')
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching token:', err)
+        }
+      }
+    }
+    
+    fetchToken()
+  }, [repoKey, token])
+
   // Reset unsaved changes when switching documents
   useEffect(() => {
     setHasUnsavedChanges(false)
@@ -290,7 +315,17 @@ export default function EditorPage() {
 
       try {
         const [owner, repo] = repoKey.split('/')
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`)
+        const headers = {}
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`, { headers })
+        
+        if (!res.ok) {
+          console.error('Error loading code files:', res.status, res.statusText)
+          return
+        }
+        
         const data = await res.json()
 
         if (data.tree) {
@@ -307,7 +342,7 @@ export default function EditorPage() {
     }
 
     loadCodeFiles()
-  }, [repoKey, branch])
+  }, [repoKey, branch, token])
 
   // Set initial code file from URL or state
   useEffect(() => {
@@ -326,7 +361,11 @@ export default function EditorPage() {
       if (!repoKey || !selectedCodeFile) return
 
       try {
-        const res = await fetch(`${API}/api/files?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(selectedCodeFile)}&branch=${branch}`)
+        let url = `${API}/api/files?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(selectedCodeFile)}&branch=${branch}`
+        if (token) {
+          url += `&token=${encodeURIComponent(token)}`
+        }
+        const res = await fetch(url)
         const data = await res.json()
         setCodeContent(data?.content || '')
       } catch (err) {
@@ -335,7 +374,7 @@ export default function EditorPage() {
       }
     }
     loadCode()
-  }, [repoKey, selectedCodeFile, branch])
+  }, [repoKey, selectedCodeFile, branch, token])
 
   // Manual save document
   const saveDocument = useCallback(async () => {
@@ -601,6 +640,36 @@ export default function EditorPage() {
         lineNum >= highlightedLines.start && lineNum <= highlightedLines.end
   }
 
+  // Group files by directory for organized dropdown
+  const groupedCodeFiles = useCallback(() => {
+    const groups = {}
+    const searchLower = codeFileSearchTerm.toLowerCase()
+    
+    // Filter files based on search term
+    const filteredFiles = codeFileSearchTerm 
+      ? codeFiles.filter(file => file.toLowerCase().includes(searchLower))
+      : codeFiles
+    
+    filteredFiles.forEach(file => {
+      const lastSlash = file.lastIndexOf('/')
+      const directory = lastSlash > 0 ? file.substring(0, lastSlash) : '(root)'
+      const fileName = lastSlash > 0 ? file.substring(lastSlash + 1) : file
+      
+      if (!groups[directory]) {
+        groups[directory] = []
+      }
+      groups[directory].push({ fullPath: file, fileName })
+    })
+    
+    // Sort directories and files within each directory
+    const sortedGroups = Object.keys(groups).sort().reduce((acc, dir) => {
+      acc[dir] = groups[dir].sort((a, b) => a.fileName.localeCompare(b.fileName))
+      return acc
+    }, {})
+    
+    return sortedGroups
+  }, [codeFiles, codeFileSearchTerm])
+
   // Check if line is part of any anchor (for show all anchors mode)
   function isLineAnchored(lineNum) {
     if (!showAllAnchors) return false
@@ -644,7 +713,7 @@ export default function EditorPage() {
 
   const goBackToRepository = () => {
     if (repoKey) {
-      navigate('/repositorypage', { state: { repoKey, repoInfo } })
+      navigate('/repositorypage', { state: { repoKey, repoInfo, token } })
     } else {
       navigate('/')
     }
@@ -1015,6 +1084,23 @@ export default function EditorPage() {
                 )}
               </button>
             </div>
+            
+            {/* Search input for filtering files */}
+            <input
+              type="text"
+              placeholder="🔍 Search files..."
+              value={codeFileSearchTerm}
+              onChange={(e) => setCodeFileSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ccc',
+                borderRadius: '4px',
+                marginBottom: '0.5rem',
+                fontSize: '0.9em'
+              }}
+            />
+            
             <select
               value={selectedCodeFile}
               onChange={(e) => {
@@ -1032,8 +1118,14 @@ export default function EditorPage() {
               }}
             >
               <option value="">Select a code file...</option>
-              {codeFiles.map(file => (
-                <option key={file} value={file}>{file}</option>
+              {Object.entries(groupedCodeFiles()).map(([directory, files]) => (
+                <optgroup key={directory} label={`📁 ${directory}`}>
+                  {files.map(({ fullPath, fileName }) => (
+                    <option key={fullPath} value={fullPath}>
+                      {fileName}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           </div>

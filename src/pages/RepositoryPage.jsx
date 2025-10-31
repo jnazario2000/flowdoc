@@ -13,7 +13,7 @@ export default function RepositoryPage() {
     const params = useParams();
 
     // Try to get repoKey from multiple sources
-    const { repoInfo, repoKey: stateRepoKey, projectId, token } = location.state || {};
+    const { repoInfo, repoKey: stateRepoKey, projectId, token: stateToken } = location.state || {};
     const repoKey = stateRepoKey || params.repoKey;
 
     const [files, setFiles] = useState([]);
@@ -26,6 +26,7 @@ export default function RepositoryPage() {
     const [createDocError, setCreateDocError] = useState(null);
     const [expandedFolders, setExpandedFolders] = useState(new Set());
     const [currentFolder, setCurrentFolder] = useState('');
+    const [token, setToken] = useState(stateToken || null);
     
     // To-do list state
     const [todos, setTodos] = useState([]);
@@ -47,6 +48,7 @@ export default function RepositoryPage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [accessDenied, setAccessDenied] = useState(false);
     const [accessChecking, setAccessChecking] = useState(true);
+    const [defaultBranch, setDefaultBranch] = useState('main');
 
     // --- helpers ---
     const stripGitHubBlob = (p) => p || "";
@@ -58,38 +60,139 @@ export default function RepositoryPage() {
         return days <= 0 ? "Today" : `${days} day${days === 1 ? "" : "s"} ago`;
     };
 
-    // --- fetch files recursively from GitHub ---
-    const fetchFiles = async (owner, repo, path = "") => {
-        try {
-            const headers = token ? { Authorization: `token ${token}` } : {};
-            const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`, { headers });
-            if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-            const data = await res.json();
-
-            let allFiles = [];
-            for (const item of data) {
-                if (item.type === "dir") {
-                    const subFiles = await fetchFiles(owner, repo, item.path);
-                    allFiles.push(...subFiles);
-                } else {
-                    allFiles.push({
-                        name: item.name,
-                        path: item.path,
-                        download_url: item.download_url,
-                        size: item.size,
-                        lastEdited: item?.git_url || null,
-                    });
+    // Fetch token from database if not in state
+    useEffect(() => {
+        const fetchToken = async () => {
+            if (!token && repoKey) {
+                try {
+                    const encodedRepoKey = encodeURIComponent(repoKey);
+                    const res = await fetch(`${API}/api/project-pages/by-repo?repoKey=${encodedRepoKey}`);
+                    if (res.ok) {
+                        const project = await res.json();
+                        if (project.token) {
+                            setToken(project.token);
+                            console.log('Token retrieved from database');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Error fetching token:', err);
                 }
             }
-            return allFiles;
+        };
+        
+        fetchToken();
+    }, [repoKey, token]);
+
+    // Detect default branch from GitHub
+    useEffect(() => {
+        const detectDefaultBranch = async () => {
+            if (!repoKey) return;
+            
+            try {
+                const [owner, repo] = repoKey.split('/');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+                
+                // Try legacy token format if Bearer fails
+                if (!res.ok && res.status === 401 && token) {
+                    headers['Authorization'] = `token ${token}`;
+                    const retryRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+                    if (retryRes.ok) {
+                        const data = await retryRes.json();
+                        setDefaultBranch(data.default_branch || 'main');
+                        console.log('Detected default branch:', data.default_branch);
+                        return;
+                    }
+                }
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    setDefaultBranch(data.default_branch || 'main');
+                    console.log('Detected default branch:', data.default_branch);
+                } else {
+                    console.warn('Could not detect default branch, using "main"');
+                }
+            } catch (err) {
+                console.error('Error detecting default branch:', err);
+            }
+        };
+        
+        detectDefaultBranch();
+    }, [repoKey, token]);
+
+    // --- fetch directory contents from GitHub (non-recursive) ---
+    const fetchDirectoryContents = async (owner, repo, path = "") => {
+        try {
+            // Don't add trailing slash if path is empty
+            const url = path 
+                ? `https://api.github.com/repos/${owner}/${repo}/contents/${path}`
+                : `https://api.github.com/repos/${owner}/${repo}/contents`;
+            
+            console.log('Fetching:', url);
+            console.log('Token present:', !!token);
+            console.log('Token first 10 chars:', token ? token.substring(0, 10) + '...' : 'none');
+            
+            // Try Bearer format first (recommended)
+            let headers = {};
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            let res = await fetch(url, { headers });
+            
+            // If Bearer fails with 401, try legacy 'token' format
+            if (!res.ok && res.status === 401 && token) {
+                console.log('Bearer format failed, trying legacy token format...');
+                headers['Authorization'] = `token ${token}`;
+                res = await fetch(url, { headers });
+            }
+            
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                console.error('GitHub API error:', {
+                    status: res.status,
+                    statusText: res.statusText,
+                    url,
+                    hasToken: !!token,
+                    message: errorData.message,
+                    documentation_url: errorData.documentation_url
+                });
+                
+                // Provide more helpful error messages
+                let errorMessage = `GitHub API error: ${res.status}`;
+                if (res.status === 401) {
+                    errorMessage += ' - Invalid or expired token. Please check your GitHub token has the "repo" scope.';
+                } else if (res.status === 404) {
+                    errorMessage += ' - Repository not found. Check that the repository name is correct and your token has access.';
+                } else if (errorData.message) {
+                    errorMessage += ` - ${errorData.message}`;
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
+            const data = await res.json();
+
+            const items = [];
+            for (const item of data) {
+                items.push({
+                    name: item.name,
+                    path: item.path,
+                    type: item.type, // 'file' or 'dir'
+                    download_url: item.download_url,
+                    size: item.size,
+                    lastEdited: item?.git_url || null,
+                });
+            }
+            return items;
         } catch (err) {
-            console.error(err);
+            console.error('fetchDirectoryContents error:', err);
             setError(err.message);
             return [];
         }
     };
 
-    // Load files from GitHub
+    // Load files from GitHub for current folder
     useEffect(() => {
         const loadFiles = async () => {
             setLoading(true);
@@ -100,13 +203,13 @@ export default function RepositoryPage() {
             }
 
             const [owner, repo] = repoKey.split("/");
-            const fetchedFiles = await fetchFiles(owner, repo);
-            setFiles(fetchedFiles);
+            const fetchedItems = await fetchDirectoryContents(owner, repo, currentFolder);
+            setFiles(fetchedItems);
             setLoading(false);
         };
 
         loadFiles();
-    }, [repoKey, token]);
+    }, [repoKey, token, currentFolder]);
 
     // Load documents from database
     useEffect(() => {
@@ -234,60 +337,38 @@ export default function RepositoryPage() {
         checkRepositoryAccess();
     }, [repoKey]);
 
-    // Build folder structure from files
-    const folderStructure = useMemo(() => {
-        const structure = {};
-        
-        files.forEach(file => {
-            const pathParts = file.path.split('/');
-            const fileName = pathParts[pathParts.length - 1];
-            const folderPath = pathParts.slice(0, -1).join('/');
-            
-            if (!structure[folderPath]) {
-                structure[folderPath] = [];
-            }
-            
-            structure[folderPath].push({
-                path: file.path,
-                name: fileName,
-                size: file.size ?? "-",
-                lastEdited: file.lastEdited,
-            });
-        });
-        
-        return structure;
-    }, [files]);
-
-    // Get current folder's files and subfolders
+    // Get current folder's files and subfolders from the fetched items
     const currentFolderContent = useMemo(() => {
-        let filesInFolder = folderStructure[currentFolder] || [];
-        const subfolders = new Set();
+        const folders = [];
+        let filesOnly = [];
         
-        // Find immediate subfolders
-        Object.keys(folderStructure).forEach(folderPath => {
-            if (folderPath.startsWith(currentFolder)) {
-                const relativePath = currentFolder ? folderPath.slice(currentFolder.length + 1) : folderPath;
-                const firstPart = relativePath.split('/')[0];
-                
-                if (firstPart && relativePath.includes('/')) {
-                    subfolders.add(firstPart);
-                }
+        // Separate folders and files
+        files.forEach(item => {
+            if (item.type === 'dir') {
+                folders.push(item.name);
+            } else {
+                filesOnly.push({
+                    path: item.path,
+                    name: item.name,
+                    size: item.size ?? "-",
+                    lastEdited: item.lastEdited,
+                });
             }
         });
         
         // Filter for undocumented files if toggle is enabled
         if (showOnlyUndocumented) {
-            filesInFolder = filesInFolder.filter(file => {
+            filesOnly = filesOnly.filter(file => {
                 const anchorCount = fileAnchorCounts[file.path] || 0;
                 return anchorCount === 0;
             });
         }
         
         return {
-            files: filesInFolder,
-            folders: Array.from(subfolders).sort()
+            files: filesOnly,
+            folders: folders.sort()
         };
-    }, [folderStructure, currentFolder, showOnlyUndocumented, fileAnchorCounts]);
+    }, [files, showOnlyUndocumented, fileAnchorCounts]);
 
     const navigateToFolder = (folderName) => {
         const newPath = currentFolder ? `${currentFolder}/${folderName}` : folderName;
@@ -311,7 +392,7 @@ export default function RepositoryPage() {
 
         const params = new URLSearchParams({
             repoKey: repoKey,
-            branch: 'main'
+            branch: defaultBranch // Use detected default branch
         });
         
         // Only add path if one is provided
@@ -323,7 +404,7 @@ export default function RepositoryPage() {
         console.log("Navigating to:", editorUrl); // Debug log
         
         // Navigate with state so EditorPage can link back to repository
-        navigate(editorUrl, { state: { repoKey, repoInfo } });
+        navigate(editorUrl, { state: { repoKey, repoInfo, token } });
     };
 
     const createDocument = async () => {
@@ -1101,11 +1182,11 @@ export default function RepositoryPage() {
                                                             // Set initial code file and open editor
                                                             const params = new URLSearchParams({
                                                                 repoKey: repoKey,
-                                                                branch: 'main',
+                                                                branch: defaultBranch,
                                                                 codeFile: file.path
                                                             });
                                                             navigate(`/editor?${params.toString()}`, { 
-                                                                state: { repoKey, repoInfo, initialCodeFile: file.path } 
+                                                                state: { repoKey, repoInfo, initialCodeFile: file.path, token } 
                                                             });
                                                         }}
                                                         style={{ padding: '0.4rem 0.8rem' }}

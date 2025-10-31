@@ -7,6 +7,7 @@ const router = express.Router();
 // Routes
 router.get('/project-pages', projectPageController.getAllProjectPages);              // Get all project pages
 router.post('/project-pages', projectPageController.createProjectPage);             // Create a new project page
+router.get('/project-pages/by-repo', projectPageController.getProjectPageByRepoKey); // Get project page by repoKey (query param)
 router.get('/project-pages/:id', projectPageController.getProjectPageById);        // Get project page by ID
 router.post('/project-pages/:id/collaborators', projectPageController.addCollaborator); // Add a collaborator to a project page
 

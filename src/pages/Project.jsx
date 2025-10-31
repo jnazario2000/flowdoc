@@ -122,6 +122,7 @@ const fetchRepoData = async () => {
         repoKey,
         files,
         projectId: insertedId, // pass to next page
+        token: token, // pass token for private repo access
       }
     });
 

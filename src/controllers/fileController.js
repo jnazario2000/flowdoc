@@ -47,7 +47,7 @@ export async function getFile(req, res) {
   const debug = { input: { ...req.query }, steps: [] };
 
   try {
-    let { repoKey, path, branch } = req.query;
+    let { repoKey, path, branch, token: userToken } = req.query;
     console.log("[/api/files] query:", req.query);
 
     if (!repoKey || !path) {
@@ -103,7 +103,8 @@ export async function getFile(req, res) {
 
     // 3) GitHub fallbacks (raw then contents; try main then master)
     const [owner, repo] = String(repoKey).split("/", 2);
-    const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
+    // Use user-provided token if available, otherwise fall back to server token
+    const token = userToken || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
 
     if (owner && repo) {
       // raw/main

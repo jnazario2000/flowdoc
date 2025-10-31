@@ -51,9 +51,23 @@ async function addCollaborator(req, res) {
   }
 }
 
+// Get Project Page by repoKey
+async function getProjectPageByRepoKey(req, res) {
+  const { repoKey } = req.query;
+  try {
+    if (!repoKey) return res.status(400).json({ message: "repoKey is required" });
+    const project = await projectPageService.getProjectPageByRepoKey(repoKey);
+    if (!project) return res.status(404).json({ message: "Project Page not found" });
+    return res.json(project);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+}
+
 export const projectPageController = {
   createProjectPage,
   getProjectPageById,
   getAllProjectPages,
   addCollaborator,
+  getProjectPageByRepoKey,
 };

@@ -59,5 +59,27 @@ export const projectPageService = {
     );
 
     return result.modifiedCount > 0;
+  },
+
+  async getProjectPageByRepoKey(repoKey) {
+    await connectDB();
+    const collection = getCollection();
+
+    // Extract owner/repo from githubUrl to match repoKey
+    const projects = await collection.find({}).toArray();
+    
+    for (const project of projects) {
+      if (project.githubUrl) {
+        const match = project.githubUrl.match(/github\.com\/([^/]+)\/([^/?#]+)(?:\.git)?/i);
+        if (match) {
+          const projectRepoKey = `${match[1]}/${match[2]}`;
+          if (projectRepoKey === repoKey) {
+            return project;
+          }
+        }
+      }
+    }
+    
+    return null;
   }
 };
