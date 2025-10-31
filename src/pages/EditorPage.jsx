@@ -26,7 +26,7 @@ export default function EditorPage() {
   const filePath = sp.get('path') || ''
   const branch = sp.get('branch') || 'main'
   const codeFileFromUrl = sp.get('codeFile')
-  
+
   // Get repository info from location state (passed from RepositoryPage)
   const { repoInfo, initialCodeFile } = location.state || {}
 
@@ -39,7 +39,7 @@ export default function EditorPage() {
   // Left side documentation selector
   const [availableDocs, setAvailableDocs] = useState([])
   const [selectedDocPath, setSelectedDocPath] = useState(filePath)
-  
+
   // Right side code viewer
   const [selectedCodeFile, setSelectedCodeFile] = useState('')
   const [codeContent, setCodeContent] = useState('')
@@ -51,10 +51,10 @@ export default function EditorPage() {
   const [selectedLines, setSelectedLines] = useState({ start: null, end: null })
   const [showAnchorForm, setShowAnchorForm] = useState(false)
   const [anchorLabel, setAnchorLabel] = useState('')
-  
+
   // AI generation
   const [aiGenerating, setAiGenerating] = useState(false)
-  
+
   // Print/PDF export
   const [isPrintMode, setIsPrintMode] = useState(false)
   
@@ -99,10 +99,40 @@ export default function EditorPage() {
     },
     editorProps: {
       handleClick: (view, pos, event) => {
-        // Let our custom handler deal with anchor links
+        // Check if clicking an anchor link
         const { target } = event
-        if (target instanceof HTMLElement && target.closest('a.anchor-link')) {
-          return true // Handled by our custom handler
+        const link = target instanceof HTMLElement ? target.closest('a.anchor-link') : null
+
+        if (link) {
+          event.preventDefault()
+          event.stopPropagation()
+
+          const href = link.getAttribute('href')
+          if (href && href.includes('#anchor:')) {
+            const anchorData = href.split('#anchor:')[1]
+            const [file, range] = anchorData.split(':')
+            const [start, end] = range.split('-').map(Number)
+
+            console.log('Anchor clicked:', { file, start, end })
+
+            // Switch to the code file if different
+            if (file && file !== selectedCodeFile) {
+              setSelectedCodeFile(file)
+            }
+
+            // Highlight the lines
+            setHighlightedLines({ start, end })
+
+            // Scroll to the line after a short delay
+            setTimeout(() => {
+              const lineElement = document.querySelector(`[data-line="${start}"]`)
+              if (lineElement) {
+                lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }
+            }, 300)
+          }
+
+          return true // Prevent TipTap's default link handling
         }
         return false
       },
@@ -159,7 +189,7 @@ export default function EditorPage() {
   useEffect(() => {
     async function loadDocs() {
       if (!repoKey) return
-      
+
       try {
         const res = await fetch(`${API}/api/documents/list?repoKey=${encodeURIComponent(repoKey)}`)
         if (res.ok) {
@@ -214,7 +244,7 @@ export default function EditorPage() {
   useEffect(() => {
     async function load() {
       if (!repoKey || !selectedDocPath) return
-      
+
       setStatus('loading')
       try {
         const dRes = await fetch(`${API}/api/documents?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(selectedDocPath)}`)
@@ -223,11 +253,11 @@ export default function EditorPage() {
         const content = d?.content || { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: d?.body || '' }] }] }
         setDocumentContent(content)
         setAnchors(d?.anchors || [])
-        
+
         if (editor && !editor.isDestroyed) {
           editor.commands.setContent(content)
         }
-        
+
         setStatus('ready')
       } catch (err) {
         console.error('Error loading:', err)
@@ -257,48 +287,44 @@ export default function EditorPage() {
   useEffect(() => {
     async function loadCodeFiles() {
       if (!repoKey) return
-      
+
       try {
         const [owner, repo] = repoKey.split('/')
         const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`)
         const data = await res.json()
-        
+
         if (data.tree) {
           const files = data.tree
-            .filter(item => item.type === 'blob' && !isDocFile(item.path))
-            .map(item => item.path)
-            .sort()
-          
+              .filter(item => item.type === 'blob' && !isDocFile(item.path))
+              .map(item => item.path)
+              .sort()
+
           setCodeFiles(files)
-          
-          // Set first code file as default if not already set
-          if (!selectedCodeFile && files.length > 0) {
-            setSelectedCodeFile(files[0])
-          }
         }
       } catch (err) {
         console.error('Error loading code files:', err)
       }
     }
-    
-    if (isDoc) {
-      loadCodeFiles()
-    }
-  }, [repoKey, branch, isDoc])
+
+    loadCodeFiles()
+  }, [repoKey, branch])
 
   // Set initial code file from URL or state
   useEffect(() => {
     const initialFile = codeFileFromUrl || initialCodeFile
     if (initialFile && !selectedCodeFile) {
       setSelectedCodeFile(initialFile)
+    } else if (!initialFile && !selectedCodeFile && codeFiles.length > 0) {
+      // Set first available code file as default
+      setSelectedCodeFile(codeFiles[0])
     }
-  }, [codeFileFromUrl, initialCodeFile, selectedCodeFile])
+  }, [codeFileFromUrl, initialCodeFile, selectedCodeFile, codeFiles])
 
   // Load code content when selectedCodeFile changes
   useEffect(() => {
     async function loadCode() {
       if (!repoKey || !selectedCodeFile) return
-      
+
       try {
         const res = await fetch(`${API}/api/files?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(selectedCodeFile)}&branch=${branch}`)
         const data = await res.json()
@@ -407,6 +433,16 @@ export default function EditorPage() {
       return
     }
 
+    if (!selectedDocPath) {
+      alert('Please select a document first')
+      return
+    }
+
+    if (!selectedCodeFile) {
+      alert('Please select a code file first')
+      return
+    }
+
     if (!editor || editor.isDestroyed) return
 
     try {
@@ -416,11 +452,11 @@ export default function EditorPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           repoKey,
-          path: filePath,
+          path: selectedCodeFile,
           startLine: selectedLines.start,
           endLine: selectedLines.end,
           text: anchorLabel,
-          docSpan: selectedCodeFile
+          docSpan: selectedDocPath
         })
       })
 
@@ -446,13 +482,13 @@ export default function EditorPage() {
         // Insert link at cursor position
         const anchorData = `${selectedCodeFile}:${selectedLines.start}-${selectedLines.end}`
         editor.chain().focus().setLink({ href: `#anchor:${anchorData}` }).insertContent(anchorLabel).run()
-        
+
         // Clear form
         setShowAnchorForm(false)
         setAnchorLabel('')
         setSelectedLines({ start: null, end: null })
       } else {
-        const error = await res.json()
+        const error = await res.json().catch(() => ({ error: 'Unknown error' }))
         alert('Error creating anchor: ' + (error.error || 'Unknown error'))
       }
     } catch (err) {
@@ -471,7 +507,7 @@ export default function EditorPage() {
     // Get selected code
     const codeLines = (codeContent || '').split('\n')
     const selectedCode = codeLines.slice(selectedLines.start - 1, selectedLines.end).join('\n')
-    
+
     if (!selectedCode.trim()) {
       alert('Selected code is empty')
       return
@@ -492,7 +528,7 @@ export default function EditorPage() {
 
       const result = await r.json()
       const generatedDoc = result.documentation || ''
-      
+
       // Insert generated documentation into editor
       if (editor && !editor.isDestroyed && generatedDoc) {
         editor.commands.insertContent(generatedDoc)
@@ -557,12 +593,12 @@ export default function EditorPage() {
   // Check if line is selected or highlighted
   function isLineSelected(lineNum) {
     return selectedLines.start !== null && selectedLines.end !== null &&
-           lineNum >= selectedLines.start && lineNum <= selectedLines.end
+        lineNum >= selectedLines.start && lineNum <= selectedLines.end
   }
 
   function isLineHighlighted(lineNum) {
     return highlightedLines.start !== null && highlightedLines.end !== null &&
-           lineNum >= highlightedLines.start && lineNum <= highlightedLines.end
+        lineNum >= highlightedLines.start && lineNum <= highlightedLines.end
   }
 
   // Check if line is part of any anchor (for show all anchors mode)
@@ -1002,73 +1038,73 @@ export default function EditorPage() {
             </select>
           </div>
 
-          {/* Anchor creation form */}
-          {showAnchorForm && (
-            <div style={{ 
-              padding: '1rem', 
-              borderBottom: '1px solid #ddd',
-              backgroundColor: '#e7f3ff'
-            }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95em' }}>
-                Create Anchor Link (Lines {selectedLines.start}-{selectedLines.end})
-              </h4>
-              <div style={{ marginBottom: '0.5rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85em', marginBottom: '0.25rem' }}>
-                  Link Label (will appear in documentation):
-                </label>
-                <input
-                  type="text"
-                  value={anchorLabel}
-                  onChange={(e) => setAnchorLabel(e.target.value)}
-                  placeholder="e.g., 'authentication logic' or 'API endpoint'"
-                  onKeyPress={(e) => e.key === 'Enter' && insertAnchorLink()}
-                  style={{ 
-                    width: '100%', 
-                    padding: '0.5rem',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    fontSize: '0.9em'
-                  }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button 
-                  onClick={insertAnchorLink}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#28a745',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '0.9em'
-                  }}
-                >
-                  Insert Link
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowAnchorForm(false)
-                    setAnchorLabel('')
-                  }}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#6c757d',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '0.9em'
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-              <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8em', opacity: 0.7 }}>
-                The link will be inserted at your cursor position in the documentation editor
-              </p>
-            </div>
-          )}
+            {/* Anchor creation form */}
+            {showAnchorForm && (
+                <div style={{
+                  padding: '1rem',
+                  borderBottom: '1px solid #ddd',
+                  backgroundColor: '#e7f3ff'
+                }}>
+                  <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.95em' }}>
+                    Create Anchor Link (Lines {selectedLines.start}-{selectedLines.end})
+                  </h4>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.85em', marginBottom: '0.25rem' }}>
+                      Link Label (will appear in documentation):
+                    </label>
+                    <input
+                        type="text"
+                        value={anchorLabel}
+                        onChange={(e) => setAnchorLabel(e.target.value)}
+                        placeholder="e.g., 'authentication logic' or 'API endpoint'"
+                        onKeyPress={(e) => e.key === 'Enter' && insertAnchorLink()}
+                        style={{
+                          width: '100%',
+                          padding: '0.5rem',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          fontSize: '0.9em'
+                        }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                        onClick={insertAnchorLink}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          backgroundColor: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.9em'
+                        }}
+                    >
+                      Insert Link
+                    </button>
+                    <button
+                        onClick={() => {
+                          setShowAnchorForm(false)
+                          setAnchorLabel('')
+                        }}
+                        style={{
+                          padding: '0.5rem 1rem',
+                          backgroundColor: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.9em'
+                        }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8em', opacity: 0.7 }}>
+                    The link will be inserted at your cursor position in the documentation editor
+                  </p>
+                </div>
+            )}
 
           {/* Code display */}
           <div style={{ flex: 1, overflow: 'auto', padding: '1rem', fontFamily: 'monospace', fontSize: '13px', backgroundColor: '#f8f8f8' }}>
@@ -1188,18 +1224,18 @@ export default function EditorPage() {
             )}
           </div>
 
-          {/* Info panel */}
-          {selectedCodeFile && (
-            <div style={{ 
-              borderTop: '1px solid #ddd',
-              padding: '0.75rem 1rem',
-              backgroundColor: '#f9f9f9',
-              fontSize: '0.85em'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* Info panel */}
+            {selectedCodeFile && (
+                <div style={{
+                  borderTop: '1px solid #ddd',
+                  padding: '0.75rem 1rem',
+                  backgroundColor: '#f9f9f9',
+                  fontSize: '0.85em'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>
-                  <strong>Selected:</strong> {selectedLines.start && selectedLines.end 
-                    ? `Lines ${selectedLines.start}-${selectedLines.end}` 
+                  <strong>Selected:</strong> {selectedLines.start && selectedLines.end
+                    ? `Lines ${selectedLines.start}-${selectedLines.end}`
                     : 'None'}
                 </span>
                 {highlightedLines.start && (
