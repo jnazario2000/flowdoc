@@ -1,129 +1,134 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import '../styles.css';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 function Signin() {
-    const [identifier, setIdentifier] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [apiStatus, setApiStatus] = useState('untested'); // 'untested', 'working', 'failed'
-    const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    identifier: '',
+    password: ''
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-    // Test API connection independently
-    const testApiConnection = async () => {
-        try {
-            setLoading(true);
-            const response = await axios.get('http://localhost:3001/users');
-            setApiStatus(response.status === 200 ? 'working' : 'failed');
-        } catch (err) {
-            setApiStatus('failed');
-            console.error('API connection test failed:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+  const { identifier, password } = formData;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error when user starts typing
+    if (error) setError('');
+  };
 
-        try {
-            const response = await axios.post('http://localhost:3001/users', {
-                identifier,
-                password
-            });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-            localStorage.setItem('authToken', response.data.token);
-            setApiStatus('working'); // Confirm API worked
-            navigate('/');
-        } catch (err) {
-            setApiStatus('failed');
-            setError(err.response?.data?.message || 'Login failed. Please try again.');
-            console.error('Login error:', {
-                config: err.config,
-                response: err.response
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+      const response = await fetch(`${API}/api/auth/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, password })
+      });
 
-    return (
-        <div className="signin-page">
-            <nav>
-                <div className="logo">FlowDoc</div>
-                <button
-                    onClick={testApiConnection}
-                    className="api-test-button"
-                    disabled={loading}
-                >
-                    Test API Connection
-                </button>
-            </nav>
+      const data = await response.json();
 
-            <main>
-                <section className="signin-section">
-                    <h2>Sign In</h2>
+      if (!response.ok) {
+        throw new Error(data.message || 'Sign in failed');
+      }
 
-                    {/* API Status Indicator */}
-                    <div className={`api-status ${apiStatus}`}>
-                        API Status: {
-                        apiStatus === 'working' ? '✅ Operational' :
-                            apiStatus === 'failed' ? '❌ Not Working' :
-                                '🔍 Untested'
-                    }
-                    </div>
+      // Store user data in localStorage
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      // Navigate to home page
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Sign in failed. Please try again.');
+      console.error('Sign in error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                    {error && <div className="error-message">{error}</div>}
+  return (
+    <div className="container" style={{ maxWidth: '500px', margin: '2rem auto' }}>
+      <h1 className="header">Sign In</h1>
+      <h2 className="subheader">Welcome back to FlowDoc</h2>
 
-                    <form onSubmit={handleSubmit}>
-                        <div className="input-group">
-                            <label htmlFor="identifier">Username or Email</label>
-                            <input
-                                type="text"
-                                id="identifier"
-                                value={identifier}
-                                onChange={(e) => setIdentifier(e.target.value)}
-                                placeholder="username or email@example.com"
-                                required
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label htmlFor="password">Password</label>
-                            <input
-                                type="password"
-                                id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="••••••••"
-                                required
-                            />
-                        </div>
-                        <button type="submit" disabled={loading}>
-                            {loading ? 'Signing In...' : 'Sign In'}
-                        </button>
-                    </form>
-
-                    <div className="test-credentials">
-                        <h4>Test API With:</h4>
-                        <button onClick={() => {
-                            setIdentifier('test@example.com');
-                            setPassword('test123');
-                        }}>
-                            Load Test Credentials
-                        </button>
-                    </div>
-
-                    <p>
-                        Don't have an account? <Link to="/signup">Sign up here</Link>.
-                    </p>
-                </section>
-            </main>
+      {error && (
+        <div style={{
+          backgroundColor: '#ffebee',
+          color: '#c62828',
+          padding: '1rem',
+          borderRadius: '6px',
+          marginBottom: '1rem',
+          border: '1px solid #ef5350'
+        }}>
+          {error}
         </div>
-    );
+      )}
+
+      <form onSubmit={handleSubmit} className="form">
+        <label htmlFor="identifier" className="label">Username or Email:</label>
+        <input
+          type="text"
+          id="identifier"
+          name="identifier"
+          className="input"
+          value={identifier}
+          onChange={handleChange}
+          placeholder="username or email@example.com"
+          required
+          autoComplete="username"
+        />
+
+        <label htmlFor="password" className="label">Password:</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          className="input"
+          value={password}
+          onChange={handleChange}
+          placeholder="••••••••"
+          required
+          autoComplete="current-password"
+        />
+
+        <hr className="divider" />
+
+        <button
+          type="submit"
+          className="loginButton"
+          disabled={loading || !identifier || !password}
+          style={{
+            opacity: loading || !identifier || !password ? 0.6 : 1,
+            cursor: loading || !identifier || !password ? 'not-allowed' : 'pointer'
+          }}
+        >
+          {loading ? 'Signing In...' : 'SIGN IN'}
+        </button>
+      </form>
+
+      <section className="section" style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+        <p className="sectionText">
+          Don't have an account? <Link to="/signup" className="link">Sign up here</Link>.
+        </p>
+      </section>
+
+      <section className="section" style={{ textAlign: 'center' }}>
+        <p className="sectionText" style={{ fontSize: '0.9em', color: '#666' }}>
+          Having trouble? Contact support for assistance.
+        </p>
+      </section>
+    </div>
+  );
 }
 
 export default Signin;

@@ -1416,6 +1416,40 @@ header {
   color: #2563eb;
 }
 
+/* ----- Editor Page Panels ----- */
+.doc-editor-panel {
+  text-align: left;
+}
+
+.code-viewer-panel {
+  text-align: left;
+}
+
+.doc-editor-panel pre,
+.doc-editor-panel code,
+.code-viewer-panel pre,
+.code-viewer-panel code {
+  text-align: left;
+}
+
+/* Anchored code lines hover effect */
+.code-viewer-panel [data-line][style*="cursor: pointer"]:hover {
+  filter: brightness(0.97);
+  box-shadow: inset 0 0 0 1px rgba(40, 167, 69, 0.3);
+}
+
+/* Navigation notification animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* ----- TipTap Editor (EditorPage) ----- */
 .tiptap {
   min-height: 280px;

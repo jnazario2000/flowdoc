@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { TEST_USER, getCurrentUserId } from "../utils/testUser";
+import { getCurrentUser, getCurrentUserId, isAuthenticated, logout } from "../utils/authUtils";
+import { useNavigate } from "react-router-dom";
+import InvitationViewer from "../components/InvitationViewer";
 import "../styles.css";
 
 /**
- * Profile page with hardcoded test user
- * - Always shows test user profile
+ * Profile page - shows current authenticated user
+ * - Shows real user profile from authentication
  * - Edit Profile modal edits name, email, projectName, projectDescription, githubUrl.
  * - View Edit History shows actual edit history from the database
  */
@@ -15,16 +17,24 @@ const API_BASE =
   "http://localhost:3000";
 
 export default function Profile() {
+  const navigate = useNavigate();
+
   // ---------- USER ----------
-  // For testing, always use the hardcoded test user
-  const [user, setUser] = useState(TEST_USER);
+  const [user, setUser] = useState(() => getCurrentUser());
   const [userLoading, setUserLoading] = useState(false);
 
   useEffect(() => {
-    // Save test user to localStorage for consistency
-    localStorage.setItem("flowdoc_user", JSON.stringify(TEST_USER));
-    setUser(TEST_USER);
-  }, []);
+    // Check if user is authenticated
+    if (!isAuthenticated()) {
+      // Redirect to signin if not authenticated
+      navigate('/signin');
+      return;
+    }
+
+    // Get current user from localStorage
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+  }, [navigate]);
 
   const userId = useMemo(() => getCurrentUserId(), []);
 
@@ -119,6 +129,9 @@ export default function Profile() {
   const [historyError, setHistoryError] = useState("");
   const [historyUserId, setHistoryUserId] = useState(userId || "");
 
+  // ---------- INVITATIONS ----------
+  const [invitationsOpen, setInvitationsOpen] = useState(false);
+
   useEffect(() => {
     // sync if user later loads
     if (userId && !historyUserId) setHistoryUserId(userId);
@@ -197,6 +210,31 @@ export default function Profile() {
             </button>
             <button className="btn btn--secondary" onClick={toggleHistory}>
               {historyOpen ? "Hide Edit History" : "View Edit History"}
+            </button>
+            <button 
+              className="btn btn--secondary" 
+              onClick={() => setInvitationsOpen(!invitationsOpen)}
+              style={{
+                backgroundColor: invitationsOpen ? '#6c757d' : '#007bff',
+                borderColor: invitationsOpen ? '#6c757d' : '#007bff',
+                color: 'white'
+              }}
+            >
+              {invitationsOpen ? "Hide Invitations" : "View Invitations"}
+            </button>
+            <button 
+              className="btn btn--danger" 
+              onClick={() => {
+                logout();
+                navigate('/signin');
+              }}
+              style={{
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none'
+              }}
+            >
+              Sign Out
             </button>
           </div>
         </div>
@@ -279,6 +317,17 @@ export default function Profile() {
               </ul>
             </div>
           )}
+        </section>
+      )}
+
+      {/* Invitations panel */}
+      {invitationsOpen && (
+        <section className="history" style={{ marginTop: '2rem' }}>
+          <h2>📨 Collaboration Invitations</h2>
+          <p style={{ fontSize: '0.9em', opacity: 0.7, marginBottom: '1rem' }}>
+            Manage invitations to collaborate on private repositories
+          </p>
+          <InvitationViewer />
         </section>
       )}
 

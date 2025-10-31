@@ -4,12 +4,15 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import { connectDB } from "./src/models/db.js";
 
+import authRoutes from "./src/routes/authRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
 import editorRoutes from "./src/routes/editorRoutes.js";
 import docRoutes from "./src/routes/docRoutes.js";
 import projectPageRoutes from "./src/routes/projectPage.routes.js";
 import editHistoryRoutes from "./src/routes/editHistoryRoutes.js";
 import AIDocRoutes from "./src/routes/AIDocRoutes.js";
+import repositoryRoutes from "./src/routes/repositoryRoutes.js";
+import invitationRoutes from "./src/routes/invitationRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,12 +28,15 @@ app.use(bodyParser.json());
 
 app.use((req, _res, next) => { console.log(`${req.method} ${req.url}`); next(); });
 
+app.use("/api", authRoutes);
 app.use("/api", userRoutes);
 app.use("/api", editorRoutes);
 app.use("/api", docRoutes);
 app.use("/api", projectPageRoutes);
 app.use("/api", editHistoryRoutes);
 app.use("/api/docs", AIDocRoutes);
+app.use("/api", repositoryRoutes);
+app.use("/api", invitationRoutes);
 
 
 app.use((err, _req, res, _next) => {

@@ -1,6 +1,8 @@
 // src/pages/RepositoryPage.jsx
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation, useParams, Link } from "react-router-dom";
+import { getCurrentUser, isAuthenticated } from "../utils/authUtils";
+import InvitationManager from "../components/InvitationManager";
 import "../styles.css";
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -37,6 +39,14 @@ export default function RepositoryPage() {
     // Anchor tracking state
     const [fileAnchorCounts, setFileAnchorCounts] = useState({});
     const [showOnlyUndocumented, setShowOnlyUndocumented] = useState(false);
+    
+    // Access control state
+    const [repository, setRepository] = useState(null);
+    const [isOwner, setIsOwner] = useState(false);
+    const [showInvitationManager, setShowInvitationManager] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [accessDenied, setAccessDenied] = useState(false);
+    const [accessChecking, setAccessChecking] = useState(true);
 
     // --- helpers ---
     const stripGitHubBlob = (p) => p || "";
@@ -156,6 +166,73 @@ export default function RepositoryPage() {
         
         loadAnchors();
     }, [repoKey, documents]);
+
+    // Check repository access and ownership
+    useEffect(() => {
+        const checkRepositoryAccess = async () => {
+            if (!repoKey) {
+                setAccessChecking(false);
+                return;
+            }
+            
+            setAccessChecking(true);
+            setAccessDenied(false);
+            
+            try {
+                // Check if user is authenticated
+                if (!isAuthenticated()) {
+                    // Allow access to public repos, but we need to check first
+                    const res = await fetch(`${API}/api/repositories/${encodeURIComponent(repoKey)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setRepository(data.repository);
+                        
+                        if (data.repository.isPrivate) {
+                            // Private repo requires authentication
+                            setAccessDenied(true);
+                            setAccessChecking(false);
+                            return;
+                        }
+                    }
+                    // If repo doesn't exist in DB or is public, allow access (legacy support)
+                    setAccessChecking(false);
+                    return;
+                }
+                
+                const user = getCurrentUser();
+                setCurrentUser(user);
+                const userId = user._id || user.id;
+                
+                // Load repository metadata and check access
+                const res = await fetch(`${API}/api/repositories/${encodeURIComponent(repoKey)}/access?userId=${userId}`);
+                
+                if (res.ok) {
+                    const accessInfo = await res.json();
+                    
+                    if (accessInfo.repository) {
+                        setRepository(accessInfo.repository);
+                        setIsOwner(accessInfo.isOwner);
+                        
+                        // Check if user has access
+                        if (!accessInfo.hasAccess) {
+                            setAccessDenied(true);
+                        }
+                    } else {
+                        // Repository doesn't exist in DB - allow access for legacy support
+                        console.log('Repository not in RBAC system, allowing access');
+                    }
+                } else {
+                    console.warn('Could not check repository access');
+                }
+            } catch (err) {
+                console.error('Error checking repository access:', err);
+            } finally {
+                setAccessChecking(false);
+            }
+        };
+        
+        checkRepositoryAccess();
+    }, [repoKey]);
 
     // Build folder structure from files
     const folderStructure = useMemo(() => {
@@ -452,6 +529,91 @@ export default function RepositoryPage() {
     };
 
     // --- UI ---
+    
+    // Show loading while checking access
+    if (accessChecking) {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100vh',
+                flexDirection: 'column',
+                gap: '1rem'
+            }}>
+                <div style={{ fontSize: '2rem' }}>🔍</div>
+                <h2>Checking Access...</h2>
+                <p style={{ color: '#666' }}>Verifying your permissions for this repository...</p>
+            </div>
+        );
+    }
+    
+    // Show access denied screen
+    if (accessDenied) {
+        return (
+            <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                height: '100vh',
+                flexDirection: 'column',
+                gap: '1.5rem',
+                padding: '2rem'
+            }}>
+                <div style={{ fontSize: '4rem' }}>🔒</div>
+                <h1 style={{ color: '#dc3545', margin: 0 }}>Access Denied</h1>
+                <p style={{ 
+                    fontSize: '1.1rem', 
+                    color: '#666', 
+                    textAlign: 'center',
+                    maxWidth: '600px'
+                }}>
+                    {repository?.isPrivate 
+                        ? "This is a private repository. You don't have permission to access it."
+                        : "You need to be signed in to access this repository."}
+                </p>
+                {!isAuthenticated() ? (
+                    <button 
+                        onClick={() => navigate('/signin')}
+                        style={{ 
+                            padding: '0.75rem 2rem',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '1rem',
+                            fontWeight: '600'
+                        }}
+                    >
+                        Sign In
+                    </button>
+                ) : (
+                    <p style={{ fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
+                        If you believe you should have access, please contact the repository owner for an invitation.
+                    </p>
+                )}
+                <button 
+                    onClick={() => navigate('/')}
+                    style={{ 
+                        padding: '0.75rem 2rem',
+                        backgroundColor: '#6c757d',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        marginTop: '1rem'
+                    }}
+                >
+                    ← Back to Home
+                </button>
+            </div>
+        );
+    }
+
+    // --- Main UI ---
     return (
         <div className="project-container">
             <header className="project-header">
@@ -462,16 +624,49 @@ export default function RepositoryPage() {
                 </div>
                 <div className="header-content">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h1 className="project-title">{repoInfo?.name || repoKey}</h1>
-                        {!isEditingDescription && (
-                            <button 
-                                className="edit-button"
-                                onClick={() => setIsEditingDescription(true)}
-                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.9em' }}
-                            >
-                                ✏️ Edit Description
-                            </button>
-                        )}
+                        <div>
+                            <h1 className="project-title">{repoInfo?.name || repoKey}</h1>
+                            {repository && repository.isPrivate && (
+                                <span style={{
+                                    display: 'inline-block',
+                                    backgroundColor: '#ffc107',
+                                    color: '#000',
+                                    padding: '0.25rem 0.75rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                    marginTop: '0.5rem'
+                                }}>
+                                    🔒 Private Repository
+                                </span>
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {isOwner && repository && repository.isPrivate && (
+                                <button 
+                                    className="edit-button"
+                                    onClick={() => setShowInvitationManager(true)}
+                                    style={{ 
+                                        padding: '0.4rem 0.8rem', 
+                                        fontSize: '0.9em',
+                                        backgroundColor: '#28a745',
+                                        borderColor: '#28a745',
+                                        color: 'white'
+                                    }}
+                                >
+                                    👥 Manage Access
+                                </button>
+                            )}
+                            {!isEditingDescription && (
+                                <button 
+                                    className="edit-button"
+                                    onClick={() => setIsEditingDescription(true)}
+                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.9em' }}
+                                >
+                                    ✏️ Edit Description
+                                </button>
+                            )}
+                        </div>
                     </div>
                     
                     {isEditingDescription ? (
@@ -950,6 +1145,15 @@ export default function RepositoryPage() {
                     )}
                 </section>
             </div>
+
+            {/* Invitation Manager Modal */}
+            {showInvitationManager && (
+                <InvitationManager
+                    repoKey={repoKey}
+                    repoName={repoInfo?.name || repoKey}
+                    onClose={() => setShowInvitationManager(false)}
+                />
+            )}
         </div>
     );
 }

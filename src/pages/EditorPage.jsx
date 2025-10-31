@@ -5,7 +5,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TipTapLink from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
-import { getCurrentUserId } from '../utils/testUser.js'
+import { getCurrentUserId, getCurrentUser, isAuthenticated } from '../utils/authUtils.js'
 import '../styles.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
@@ -32,7 +32,9 @@ export default function EditorPage() {
 
   const [documentContent, setDocumentContent] = useState(null)
   const [anchors, setAnchors] = useState([])
+  const [allAnchors, setAllAnchors] = useState([])
   const [status, setStatus] = useState('loading')
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   
   // Left side documentation selector
   const [availableDocs, setAvailableDocs] = useState([])
@@ -43,6 +45,7 @@ export default function EditorPage() {
   const [codeContent, setCodeContent] = useState('')
   const [codeFiles, setCodeFiles] = useState([])
   const [highlightedLines, setHighlightedLines] = useState({ start: null, end: null })
+  const [showAllAnchors, setShowAllAnchors] = useState(false)
   
   // Anchor creation
   const [selectedLines, setSelectedLines] = useState({ start: null, end: null })
@@ -55,13 +58,25 @@ export default function EditorPage() {
   // Print/PDF export
   const [isPrintMode, setIsPrintMode] = useState(false)
   
+  // Navigation notification
+  const [navigationNotification, setNavigationNotification] = useState(null)
+  
+  // Access control
+  const [accessDenied, setAccessDenied] = useState(false)
+  const [accessChecking, setAccessChecking] = useState(true)
+  const [repositoryData, setRepositoryData] = useState(null)
+  
   const timer = useRef(null)
+  const notificationTimer = useRef(null)
   const isDoc = isDocFile(filePath)
 
   // TipTap editor for documentation
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Disable the default link extension from StarterKit
+        link: false,
+      }),
       TipTapLink.configure({
         openOnClick: false,
         linkOnPaste: false,
@@ -79,7 +94,8 @@ export default function EditorPage() {
     onUpdate: ({ editor }) => {
       const json = editor.getJSON()
       setDocumentContent(json)
-      saveDocument(json)
+      setHasUnsavedChanges(true)
+      setStatus('unsaved')
     },
     editorProps: {
       handleClick: (view, pos, event) => {
@@ -92,6 +108,52 @@ export default function EditorPage() {
       },
     },
   })
+
+  // Check repository access
+  useEffect(() => {
+    async function checkAccess() {
+      if (!repoKey) {
+        setAccessChecking(false)
+        return
+      }
+      
+      setAccessChecking(true)
+      setAccessDenied(false)
+      
+      try {
+        // Check if user is authenticated
+        if (!isAuthenticated()) {
+          setAccessDenied(true)
+          setAccessChecking(false)
+          return
+        }
+        
+        const currentUser = getCurrentUser()
+        const userId = currentUser._id || currentUser.id
+        
+        // Check repository access
+        const res = await fetch(`${API}/api/repositories/${encodeURIComponent(repoKey)}/access?userId=${userId}`)
+        
+        if (res.ok) {
+          const data = await res.json()
+          setRepositoryData(data)
+          
+          if (!data.hasAccess) {
+            setAccessDenied(true)
+          }
+        } else {
+          // If repository doesn't exist in DB, allow access (legacy support)
+          console.warn('Repository not found in database, allowing access for legacy support')
+        }
+      } catch (err) {
+        console.error('Error checking repository access:', err)
+      } finally {
+        setAccessChecking(false)
+      }
+    }
+    
+    checkAccess()
+  }, [repoKey])
 
   // Load available documentation files
   useEffect(() => {
@@ -111,6 +173,43 @@ export default function EditorPage() {
     loadDocs()
   }, [repoKey])
 
+  // Load all anchors from all documents in the repository
+  useEffect(() => {
+    async function loadAllAnchors() {
+      if (!repoKey || availableDocs.length === 0) return
+      
+      try {
+        // Fetch all documents and collect their anchors
+        const allAnchorsArray = []
+        
+        for (const doc of availableDocs) {
+          try {
+            const res = await fetch(`${API}/api/documents?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(doc.path)}`)
+            if (res.ok) {
+              const data = await res.json()
+              if (data.anchors && Array.isArray(data.anchors)) {
+                // Add document path to each anchor for reference
+                const anchorsWithDoc = data.anchors.map(anchor => ({
+                  ...anchor,
+                  documentPath: doc.path
+                }))
+                allAnchorsArray.push(...anchorsWithDoc)
+              }
+            }
+          } catch (err) {
+            console.error(`Error loading anchors from ${doc.path}:`, err)
+          }
+        }
+        
+        setAllAnchors(allAnchorsArray)
+      } catch (err) {
+        console.error('Error loading all anchors:', err)
+      }
+    }
+    
+    loadAllAnchors()
+  }, [repoKey, availableDocs])
+
   // Load document and set up initial code file
   useEffect(() => {
     async function load() {
@@ -119,7 +218,7 @@ export default function EditorPage() {
       setStatus('loading')
       try {
         const dRes = await fetch(`${API}/api/documents?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(selectedDocPath)}`)
-      const d = await dRes.json()
+        const d = await dRes.json()
         
         const content = d?.content || { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: d?.body || '' }] }] }
         setDocumentContent(content)
@@ -147,6 +246,12 @@ export default function EditorPage() {
       }
     }
   }, [editor, documentContent])
+
+  // Reset unsaved changes when switching documents
+  useEffect(() => {
+    setHasUnsavedChanges(false)
+    setStatus('ready')
+  }, [selectedDocPath])
 
   // Load available code files from repository
   useEffect(() => {
@@ -206,56 +311,83 @@ export default function EditorPage() {
     loadCode()
   }, [repoKey, selectedCodeFile, branch])
 
-  // Auto-save document
-  const saveDocument = useCallback((content) => {
-    setStatus('dirty')
-    clearTimeout(timer.current)
-    timer.current = setTimeout(async () => {
-      setStatus('saving')
-      try {
-        // Save the document
-        const res = await fetch(`${API}/api/documents`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            repoKey, 
-            path: selectedDocPath, 
-            content 
+  // Manual save document
+  const saveDocument = useCallback(async () => {
+    if (!hasUnsavedChanges || !documentContent) {
+      return
+    }
+
+    setStatus('saving')
+    try {
+      // Save the document
+      const res = await fetch(`${API}/api/documents`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          repoKey, 
+          path: selectedDocPath, 
+          content: documentContent 
+        })
+      })
+      
+      if (res.ok) {
+        setStatus('saved')
+        setHasUnsavedChanges(false)
+        
+        // Track the edit in history
+        try {
+          await fetch(`${API}/api/editHistories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: getCurrentUserId(),
+              documentId: `${repoKey}/${selectedDocPath}`,
+              repoKey: repoKey,
+              path: selectedDocPath,
+              action: 'edit',
+              changes: 'Document saved',
+              newContent: JSON.stringify(documentContent).substring(0, 500),
+              timestamp: new Date()
+            })
           })
+        } catch (historyErr) {
+          console.error('Failed to record edit history:', historyErr)
+          // Don't fail the save if history tracking fails
+        }
+
+        // Show success notification
+        setNavigationNotification({
+          message: '✓ Document saved successfully',
+          type: 'success'
         })
         
-        if (res.ok) {
-          setStatus('saved')
-          
-          // Track the edit in history
-          try {
-            await fetch(`${API}/api/editHistories`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: getCurrentUserId(),
-                documentId: `${repoKey}/${selectedDocPath}`,
-                repoKey: repoKey,
-                path: selectedDocPath,
-                action: 'edit',
-                changes: 'Document updated',
-                newContent: JSON.stringify(content).substring(0, 500), // Store preview of content
-                timestamp: new Date()
-              })
-            })
-          } catch (historyErr) {
-            console.error('Failed to record edit history:', historyErr)
-            // Don't fail the save if history tracking fails
-          }
-        } else {
-          setStatus('error')
-        }
-      } catch (err) {
-        console.error('Error saving:', err)
+        clearTimeout(notificationTimer.current)
+        notificationTimer.current = setTimeout(() => {
+          setNavigationNotification(null)
+        }, 2000)
+      } else {
         setStatus('error')
+        alert('Failed to save document')
       }
-    }, 900)
-  }, [repoKey, selectedDocPath])
+    } catch (err) {
+      console.error('Error saving:', err)
+      setStatus('error')
+      alert('Error saving document: ' + err.message)
+    }
+  }, [repoKey, selectedDocPath, documentContent, hasUnsavedChanges])
+
+  // Keyboard shortcut for save (Ctrl+S / Cmd+S)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        saveDocument()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [saveDocument])
 
   // Handle line selection in code view
   function handleLineClick(lineNum, e) {
@@ -295,6 +427,21 @@ export default function EditorPage() {
       if (res.ok) {
         const data = await res.json()
         setAnchors(data.document?.anchors || [])
+        
+        // Refresh all anchors to include the new one
+        if (data.document?.anchors) {
+          // Update allAnchors by replacing anchors for this document
+          setAllAnchors(prev => {
+            // Remove old anchors from this document
+            const filtered = prev.filter(a => a.documentPath !== selectedDocPath)
+            // Add updated anchors with document path
+            const updated = data.document.anchors.map(anchor => ({
+              ...anchor,
+              documentPath: selectedDocPath
+            }))
+            return [...filtered, ...updated]
+          })
+        }
         
         // Insert link at cursor position
         const anchorData = `${selectedCodeFile}:${selectedLines.start}-${selectedLines.end}`
@@ -401,6 +548,12 @@ export default function EditorPage() {
     }
   }, [selectedCodeFile])
 
+  // Get all anchors for the current code file from ALL documents
+  const getCurrentFileAnchors = useCallback(() => {
+    if (!selectedCodeFile || !allAnchors || allAnchors.length === 0) return []
+    return allAnchors.filter(anchor => anchor.docSpan === selectedCodeFile)
+  }, [selectedCodeFile, allAnchors])
+
   // Check if line is selected or highlighted
   function isLineSelected(lineNum) {
     return selectedLines.start !== null && selectedLines.end !== null &&
@@ -410,6 +563,47 @@ export default function EditorPage() {
   function isLineHighlighted(lineNum) {
     return highlightedLines.start !== null && highlightedLines.end !== null &&
            lineNum >= highlightedLines.start && lineNum <= highlightedLines.end
+  }
+
+  // Check if line is part of any anchor (for show all anchors mode)
+  function isLineAnchored(lineNum) {
+    if (!showAllAnchors) return false
+    const fileAnchors = getCurrentFileAnchors()
+    return fileAnchors.some(anchor => 
+      lineNum >= anchor.startLine && lineNum <= anchor.endLine
+    )
+  }
+
+  // Get anchor info for a specific line
+  function getAnchorForLine(lineNum) {
+    if (!showAllAnchors) return null
+    const fileAnchors = getCurrentFileAnchors()
+    return fileAnchors.find(anchor => 
+      lineNum >= anchor.startLine && lineNum <= anchor.endLine
+    )
+  }
+
+  // Navigate to documentation containing the anchor
+  function navigateToDocumentWithAnchor(anchor) {
+    if (!anchor || !anchor.documentPath) return
+    
+    // Switch to the document containing this anchor
+    setSelectedDocPath(anchor.documentPath)
+    
+    // Highlight the lines in code viewer
+    setHighlightedLines({ start: anchor.startLine, end: anchor.endLine })
+    
+    // Show a notification
+    setNavigationNotification({
+      message: `📄 Jumped to documentation: ${anchor.documentPath}`,
+      type: 'success'
+    })
+    
+    // Clear notification after 3 seconds
+    clearTimeout(notificationTimer.current)
+    notificationTimer.current = setTimeout(() => {
+      setNavigationNotification(null)
+    }, 3000)
   }
 
   const goBackToRepository = () => {
@@ -438,10 +632,117 @@ export default function EditorPage() {
     )
   }
 
+  // Show loading state while checking access
+  if (accessChecking) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <h2>Checking Access...</h2>
+        <p>Verifying your permissions for this repository...</p>
+      </div>
+    )
+  }
+
+  // Show access denied message
+  if (accessDenied) {
+    return (
+      <div style={{ padding: '3rem', textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+        <div style={{ 
+          fontSize: '4rem', 
+          marginBottom: '1rem'
+        }}>
+          🔒
+        </div>
+        <h2 style={{ color: '#dc3545', marginBottom: '1rem' }}>Access Denied</h2>
+        <p style={{ fontSize: '1.1rem', color: '#666', marginBottom: '2rem' }}>
+          {repositoryData?.repository?.isPrivate 
+            ? "This is a private repository. You don't have permission to access it."
+            : "You need to be signed in to access this repository."}
+        </p>
+        {!isAuthenticated() ? (
+          <button 
+            onClick={() => navigate('/signin')}
+            style={{ 
+              padding: '0.75rem 2rem',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600',
+              marginRight: '1rem'
+            }}
+          >
+            Sign In
+          </button>
+        ) : (
+          <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+            If you believe you should have access, please contact the repository owner.
+          </p>
+        )}
+        <button 
+          onClick={() => navigate('/')}
+          style={{ 
+            padding: '0.75rem 2rem',
+            backgroundColor: '#6c757d',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '1rem',
+            fontWeight: '600',
+            marginTop: '1rem'
+          }}
+        >
+          ← Back to Home
+        </button>
+      </div>
+    )
+  }
+
   const codeLines = (codeContent || '').split('\n')
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', position: 'relative' }}>
+      {/* Navigation Notification */}
+      {navigationNotification && (
+        <div style={{
+          position: 'fixed',
+          top: '1rem',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          backgroundColor: navigationNotification.type === 'success' ? '#28a745' : '#007bff',
+          color: 'white',
+          padding: '0.75rem 1.5rem',
+          borderRadius: '6px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          fontSize: '0.95em',
+          fontWeight: '500',
+          animation: 'slideDown 0.3s ease-out',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
+        }}>
+          {navigationNotification.message}
+          <button
+            onClick={() => setNavigationNotification(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '1.2em',
+              cursor: 'pointer',
+              padding: '0',
+              marginLeft: '0.5rem',
+              lineHeight: '1'
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
       {/* Header */}
       <div style={{ 
         padding: '1rem', 
@@ -470,12 +771,25 @@ export default function EditorPage() {
               {repoKey} ({branch})
             </span>
           </div>
-          <div style={{ fontSize: '0.9em', opacity: 0.8 }}>
-            {status === 'loading' ? 'Loading…' : 
-             status === 'saving' ? 'Saving…' : 
-             status === 'dirty' ? 'Unsaved changes' : 
-             status === 'error' ? '❌ Error' : 
-             '✓ Saved'}
+          <div style={{ 
+            fontSize: '0.9em', 
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            {status === 'loading' ? (
+              <span style={{ opacity: 0.8 }}>Loading…</span>
+            ) : status === 'saving' ? (
+              <span style={{ opacity: 0.8 }}>Saving…</span>
+            ) : status === 'unsaved' ? (
+              <span style={{ color: '#f57c00', fontWeight: 'bold' }}>● Unsaved changes</span>
+            ) : status === 'error' ? (
+              <span style={{ color: '#dc3545' }}>❌ Error</span>
+            ) : hasUnsavedChanges ? (
+              <span style={{ color: '#f57c00', fontWeight: 'bold' }}>● Unsaved changes</span>
+            ) : (
+              <span style={{ color: '#28a745', opacity: 0.8 }}>✓ Saved</span>
+            )}
           </div>
         </div>
       </div>
@@ -493,24 +807,49 @@ export default function EditorPage() {
           <div style={{ padding: '1rem', borderBottom: '1px solid #ddd', backgroundColor: '#f5f5f5' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h3 style={{ margin: 0 }}>Documentation Editor</h3>
-              <button
-                onClick={handlePrint}
-                style={{
-                  padding: '0.4rem 0.8rem',
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.85em',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem'
-                }}
-                title="Print or export as PDF"
-              >
-                🖨️ Export PDF
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={saveDocument}
+                  disabled={!hasUnsavedChanges}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    backgroundColor: hasUnsavedChanges ? '#28a745' : '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: hasUnsavedChanges ? 'pointer' : 'not-allowed',
+                    fontSize: '0.9em',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    opacity: hasUnsavedChanges ? 1 : 0.6,
+                    transition: 'all 0.2s ease'
+                  }}
+                  title={hasUnsavedChanges ? 'Save changes (Ctrl+S / Cmd+S)' : 'No unsaved changes'}
+                >
+                  💾 Save
+                  {hasUnsavedChanges && <span style={{ fontSize: '1.2em' }}>●</span>}
+                </button>
+                <button
+                  onClick={handlePrint}
+                  style={{
+                    padding: '0.4rem 0.8rem',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '0.85em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem'
+                  }}
+                  title="Print or export as PDF"
+                >
+                  🖨️ Export PDF
+                </button>
+              </div>
             </div>
             <select
               value={selectedDocPath}
@@ -530,9 +869,14 @@ export default function EditorPage() {
                 <option key={doc.path} value={doc.path}>{doc.path}</option>
               ))}
             </select>
-            <p style={{ margin: '0', fontSize: '0.85em', opacity: 0.7 }}>
-              Click "Create Anchor Link" after selecting code lines on the right
-            </p>
+            <div style={{ fontSize: '0.85em', opacity: 0.7 }}>
+              <p style={{ margin: '0 0 0.25rem 0' }}>
+                💡 Click "Create Anchor Link" after selecting code lines on the right
+              </p>
+              <p style={{ margin: '0', fontStyle: 'italic' }}>
+                Press <strong>Ctrl+S</strong> (or <strong>Cmd+S</strong>) to save your changes
+              </p>
+            </div>
           </div>
           <div style={{ 
             flex: 1, 
@@ -597,6 +941,43 @@ export default function EditorPage() {
                   Create Anchor Link
                 </button>
               </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <button
+                onClick={() => {
+                  setShowAllAnchors(!showAllAnchors)
+                  if (!showAllAnchors) {
+                    // Clear any manual highlights when showing all anchors
+                    setHighlightedLines({ start: null, end: null })
+                  }
+                }}
+                style={{
+                  padding: '0.4rem 0.8rem',
+                  backgroundColor: showAllAnchors ? '#28a745' : '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.85em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem'
+                }}
+                title={showAllAnchors ? 'Hide all anchor highlights' : 'Show all anchor highlights in this file'}
+              >
+                {showAllAnchors ? '✓ ' : ''}Show All Anchors
+                {selectedCodeFile && getCurrentFileAnchors().length > 0 && (
+                  <span style={{ 
+                    backgroundColor: 'rgba(255,255,255,0.3)', 
+                    padding: '2px 6px', 
+                    borderRadius: '10px',
+                    fontSize: '0.9em',
+                    fontWeight: 'bold'
+                  }}>
+                    {getCurrentFileAnchors().length}
+                  </span>
+                )}
+              </button>
             </div>
             <select
               value={selectedCodeFile}
@@ -704,21 +1085,55 @@ export default function EditorPage() {
                 const lineNum = i + 1
                 const isSelected = isLineSelected(lineNum)
                 const isHighlighted = isLineHighlighted(lineNum)
+                const isAnchored = isLineAnchored(lineNum)
+                const anchorInfo = getAnchorForLine(lineNum)
+                
+                // Determine background color based on priority: manual highlight > anchored > selected
+                let backgroundColor = 'transparent'
+                let borderLeft = 'none'
+                let paddingLeft = '0'
+                
+                if (isHighlighted) {
+                  backgroundColor = '#fff3b0'
+                  borderLeft = '4px solid #ffc107'
+                  paddingLeft = '0.5rem'
+                } else if (isAnchored) {
+                  backgroundColor = '#d4f4dd'
+                  borderLeft = '4px solid #28a745'
+                  paddingLeft = '0.5rem'
+                } else if (isSelected) {
+                  backgroundColor = '#d4e9ff'
+                  borderLeft = '3px solid #007bff'
+                  paddingLeft = '0.5rem'
+                }
                 
                 return (
                   <div 
                     key={i}
                     data-line={lineNum}
+                    onClick={(e) => {
+                      // If it's an anchored line and not clicking on line number, navigate to document
+                      if (isAnchored && anchorInfo && !e.target.closest('.line-number')) {
+                        navigateToDocumentWithAnchor(anchorInfo)
+                      }
+                    }}
                     style={{ 
                       display: 'flex',
-                      backgroundColor: isHighlighted ? '#fff3b0' : isSelected ? '#d4e9ff' : 'transparent',
-                      borderLeft: isHighlighted ? '4px solid #ffc107' : isSelected ? '3px solid #007bff' : 'none',
-                      paddingLeft: isHighlighted || isSelected ? '0.5rem' : '0',
-                      transition: 'all 0.2s ease'
+                      backgroundColor,
+                      borderLeft,
+                      paddingLeft,
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      cursor: isAnchored ? 'pointer' : 'default'
                     }}
+                    title={isAnchored && anchorInfo ? `Click to view in documentation: ${anchorInfo.text} (${anchorInfo.documentPath})` : ''}
                   >
                     <span 
-                      onClick={(e) => handleLineClick(lineNum, e)}
+                      className="line-number"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleLineClick(lineNum, e)
+                      }}
                       style={{ 
                         display: 'inline-block',
                         minWidth: '3rem',
@@ -727,13 +1142,46 @@ export default function EditorPage() {
                         opacity: 0.5,
                         userSelect: 'none',
                         cursor: 'pointer',
-                        fontWeight: isSelected || isHighlighted ? 'bold' : 'normal',
-                        color: isHighlighted ? '#f57c00' : isSelected ? '#0066cc' : '#666'
+                        fontWeight: isSelected || isHighlighted || isAnchored ? 'bold' : 'normal',
+                        color: isHighlighted ? '#f57c00' : isAnchored ? '#28a745' : isSelected ? '#0066cc' : '#666'
                       }}
                     >
                       {lineNum}
+                      {isAnchored && anchorInfo && lineNum === anchorInfo.startLine && (
+                        <span style={{ 
+                          marginLeft: '4px', 
+                          fontSize: '0.8em',
+                          color: '#28a745'
+                        }}>
+                          🔗
+                        </span>
+                      )}
                     </span>
-                    <span style={{ whiteSpace: 'pre', flex: 1 }}>{line}</span>
+                    <span style={{ 
+                      whiteSpace: 'pre', 
+                      flex: 1,
+                      position: 'relative'
+                    }}>
+                      {line}
+                      {isAnchored && anchorInfo && lineNum === anchorInfo.startLine && (
+                        <span style={{
+                          position: 'absolute',
+                          right: '0.5rem',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '0.75em',
+                          color: '#28a745',
+                          backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontWeight: 'bold',
+                          opacity: 0.7,
+                          pointerEvents: 'none'
+                        }}>
+                          📄 Click to view in doc
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )
               })
@@ -771,9 +1219,79 @@ export default function EditorPage() {
                   </button>
                 )}
               </div>
-              <p style={{ margin: '0.5rem 0 0 0', opacity: 0.7 }}>
-                Click line numbers to select (Shift+Click for range)
-              </p>
+              {showAllAnchors && getCurrentFileAnchors().length > 0 ? (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: '0.5rem', 
+                    marginBottom: '0.5rem',
+                    padding: '0.5rem',
+                    backgroundColor: '#e7f3e9',
+                    borderRadius: '4px',
+                    border: '1px solid #28a745'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <span style={{ 
+                        width: '20px', 
+                        height: '3px', 
+                        backgroundColor: '#28a745',
+                        display: 'inline-block'
+                      }}></span>
+                      <span style={{ fontWeight: 'bold' }}>Anchored sections (click to navigate)</span>
+                    </div>
+                    <div style={{ fontSize: '0.85em', color: '#555', fontStyle: 'italic' }}>
+                      💡 Click any green-highlighted code to jump to its documentation
+                    </div>
+                  </div>
+                  <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                    <strong>Anchors in this file ({getCurrentFileAnchors().length}):</strong>
+                    <ul style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.5rem', listStyle: 'none' }}>
+                      {getCurrentFileAnchors().map((anchor, idx) => (
+                        <li key={idx} style={{ marginBottom: '0.5rem' }}>
+                          <button
+                            onClick={() => {
+                              setHighlightedLines({ start: anchor.startLine, end: anchor.endLine })
+                              const lineElement = document.querySelector(`[data-line="${anchor.startLine}"]`)
+                              if (lineElement) {
+                                lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              }
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#28a745',
+                              textDecoration: 'underline',
+                              cursor: 'pointer',
+                              padding: 0,
+                              fontSize: '0.9em',
+                              textAlign: 'left'
+                            }}
+                          >
+                            <div style={{ fontWeight: 'bold' }}>
+                              Lines {anchor.startLine}-{anchor.endLine}: {anchor.text}
+                            </div>
+                            {anchor.documentPath && (
+                              <div style={{ 
+                                fontSize: '0.85em', 
+                                color: '#6c757d', 
+                                fontStyle: 'italic',
+                                marginTop: '2px'
+                              }}>
+                                📄 {anchor.documentPath}
+                              </div>
+                            )}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ margin: '0.5rem 0 0 0', opacity: 0.7 }}>
+                  Click line numbers to select (Shift+Click for range)
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
 import '../styles.css';
 
 function GitHubFileExplorer() {
@@ -10,7 +11,18 @@ function GitHubFileExplorer() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [token, setToken] = useState(''); // <-- NEW: GitHub token state
+  const [token, setToken] = useState(''); // GitHub token for private repos
+  const [isPrivate, setIsPrivate] = useState(false); // Privacy setting
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate('/signin');
+      return;
+    }
+    setCurrentUser(getCurrentUser());
+  }, [navigate]);
 
   // robust parse: https://github.com/<owner>/<repo>[.git][...]
   function parseOwnerRepo(url) {
@@ -41,6 +53,16 @@ const fetchRepoData = async () => {
 
     const files = await fetchFiles(owner, repo);
 
+    // Determine if private based on token requirement
+    const requiresToken = !!token;
+    const privateStatus = isPrivate || requiresToken;
+
+    console.log('Privacy settings:', {
+      isPrivateCheckbox: isPrivate,
+      requiresToken: requiresToken,
+      finalPrivateStatus: privateStatus
+    });
+
     // Save the project to DB
     const saveRes = await fetch('http://localhost:3000/api/project-pages', {
       method: 'POST',
@@ -50,13 +72,44 @@ const fetchRepoData = async () => {
         description,
         githubUrl: repoUrl,
         token,
-        ownerId: "67e251f2b3284216506a470f", // <--- this is hard coded for now but change later!!!!-------------------------------------------------------------------------
+        ownerId: currentUser._id || currentUser.id,
       }),
     });
 
     if (!saveRes.ok) throw new Error('Failed to create project in database');
 
     const { insertedId } = await saveRes.json();
+
+    // Create repository entry for access control
+    const repositoryData = {
+      repoKey,
+      name: title || repoData.name || repo,
+      description: description || repoData.description || '',
+      githubUrl: repoUrl,
+      isPrivate: privateStatus,
+      ownerId: currentUser._id || currentUser.id,
+      ownerUsername: currentUser.username,
+    };
+    
+    console.log('Creating repository with data:', repositoryData);
+    
+    const repoCreateRes = await fetch('http://localhost:3000/api/repositories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(repositoryData),
+    });
+
+    if (!repoCreateRes.ok) {
+      // Repository might already exist, which is okay
+      const errorData = await repoCreateRes.json();
+      console.error('Repository creation response:', errorData);
+      if (errorData.message !== 'Repository already exists') {
+        console.warn('Failed to create repository entry:', errorData.message);
+      }
+    } else {
+      const repoResult = await repoCreateRes.json();
+      console.log('Repository created successfully:', repoResult);
+    }
 
     // Navigate to repo page
     navigate('/repositorypage', {
@@ -140,10 +193,45 @@ const fetchRepoData = async () => {
               onChange={(e) => setToken(e.target.value)}
               placeholder="Optional: GitHub Personal Access Token"
           />
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            margin: '1rem 0',
+            padding: '1rem',
+            backgroundColor: '#f8f9fa',
+            borderRadius: '6px'
+          }}>
+            <input
+              type="checkbox"
+              id="isPrivate"
+              checked={isPrivate}
+              onChange={(e) => {
+                console.log('Privacy checkbox changed to:', e.target.checked);
+                setIsPrivate(e.target.checked);
+              }}
+              style={{ width: 'auto', cursor: 'pointer' }}
+            />
+            <label htmlFor="isPrivate" style={{ cursor: 'pointer', margin: 0 }}>
+              <strong>Make this a private project</strong> (requires access token, only you and invited collaborators can view)
+            </label>
+          </div>
+          {token && (
+            <div style={{ 
+              padding: '0.75rem', 
+              backgroundColor: '#fff3cd', 
+              border: '1px solid #ffc107',
+              borderRadius: '6px',
+              fontSize: '0.9rem',
+              marginBottom: '1rem'
+            }}>
+              🔒 Note: Using a GitHub token will automatically make this project private
+            </div>
+          )}
           <button
               className="explore-button"
               onClick={fetchRepoData}
-              disabled={!repoUrl || isLoading}
+              disabled={!repoUrl || isLoading || !currentUser}
           >
             {isLoading ? 'Loading...' : 'Create Project'}
           </button>

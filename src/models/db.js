@@ -18,6 +18,8 @@ export const state = {
   threads: null,   // collection for comment threads
   projectPagesCollection: null,
   users: null,
+  repositories: null, // collection for repository metadata and access control
+  invitations: null,  // collection for collaboration invitations
 };
 
 // Call this ONCE during app startup (or lazily the first time you need it).
@@ -38,6 +40,8 @@ export async function connectDB() {
   state.projectPagesCollection = db.collection("project-pages");
   state.users     = db.collection("users");
   state.editHistories = db.collection("editHistories");
+  state.repositories = db.collection("repositories");
+  state.invitations = db.collection("invitations");
 
   // Ensure (repoKey, path) is unique for documents.
   // partialFilterExpression means the index only applies when fields exist.
@@ -69,6 +73,19 @@ export async function connectDB() {
   await state.editHistories.createIndex({ userId: 1, timestamp: -1 });
   await state.editHistories.createIndex({ documentId: 1, timestamp: -1 });
   await state.editHistories.createIndex({ repoKey: 1, timestamp: -1 });
+
+  // Index for users - unique username and email
+  await state.users.createIndex({ username: 1 }, { unique: true });
+  await state.users.createIndex({ email: 1 }, { unique: true });
+
+  // Index for repositories - unique repoKey and fast owner lookups
+  await state.repositories.createIndex({ repoKey: 1 }, { unique: true });
+  await state.repositories.createIndex({ ownerId: 1 });
+
+  // Index for invitations - fast lookups by recipient and status
+  await state.invitations.createIndex({ toUserId: 1, status: 1 });
+  await state.invitations.createIndex({ fromUserId: 1 });
+  await state.invitations.createIndex({ repositoryKey: 1 });
 
   console.log(`Mongo connected → db: ${dbName}`);
   return db;

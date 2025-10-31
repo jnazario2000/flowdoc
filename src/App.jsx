@@ -3,23 +3,23 @@ import { Routes, Route } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
 import Signin from "./pages/Signin";
-import Project from "./pages/Project";                 // (the file above)
-import FloridaTech from "./pages/FloridaTech";         // optional: remove if you don't have it
-import ProjectPages from "./pages/ProjectPages.jsx";   // optional
+import Signup from "./pages/Signup";
+import Project from "./pages/Project";
+import ProjectPages from "./pages/ProjectPages.jsx";
 import RepositoryPage from "./pages/RepositoryPage";
 import Profile from "./pages/Profile";
-import EditorPage from "./pages/EditorPage";           // Updated to use EditorPage
+import EditorPage from "./pages/EditorPage";
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/signin" element={<Signin />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/project" element={<Project />} />
-      <Route path="/fltech" element={<FloridaTech />} />
       <Route path="/browseprojects" element={<ProjectPages />} />
       <Route path="/repositorypage" element={<RepositoryPage />} />
-        <Route path="/profile" element={<Profile />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="/editor" element={<EditorPage />} />
     </Routes>
   );
