@@ -3,7 +3,7 @@
 import Groq from "groq-sdk";
 
 //const provider = process.env.AI_PROVIDER?.toLowerCase() || "openai";
-const provider = "groq-sdk";
+const provider = "groq";
 
 let client;
 let generateAIDoc;
@@ -16,7 +16,7 @@ if (provider === "groq") {
 
     generateAIDoc = async (snippet) => {
         const completion = await groqClient.chat.completions.create({
-            model: "openai/gpt-oss-120b",
+            model: "llama-3.3-70b-versatile", // Using Llama 3.3 70B - fast and capable
             messages: [
                 {
                     role: "system",

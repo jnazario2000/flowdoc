@@ -56,6 +56,8 @@ export default function EditorPage() {
 
   // AI generation
   const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiPreview, setAiPreview] = useState(null) // Stores AI-generated content
+  const [showAiPreview, setShowAiPreview] = useState(false)
 
   // Print/PDF export
   const [isPrintMode, setIsPrintMode] = useState(false)
@@ -568,16 +570,108 @@ export default function EditorPage() {
       const result = await r.json()
       const generatedDoc = result.documentation || ''
 
-      // Insert generated documentation into editor
-      if (editor && !editor.isDestroyed && generatedDoc) {
-        editor.commands.insertContent(generatedDoc)
-        setStatus('dirty')
+      // Show preview instead of directly inserting
+      if (generatedDoc) {
+        setAiPreview(generatedDoc)
+        setShowAiPreview(true)
+      } else {
+        alert('No documentation was generated')
       }
     } catch (err) {
-      alert(err.message || 'AI generation failed')
+      console.error('AI generation error:', err)
+      alert(err.message || 'AI generation failed. Make sure your GROQ_API_KEY is set in the .env file.')
     } finally {
       setAiGenerating(false)
     }
+  }
+
+  // Insert AI-generated documentation into editor
+  function insertAiDocumentation() {
+    if (editor && !editor.isDestroyed && aiPreview) {
+      // Convert plain text with line breaks into proper TipTap HTML format
+      // Split by paragraphs (double line breaks)
+      const paragraphs = aiPreview.split(/\n\n+/)
+      
+      // Build HTML content with proper formatting
+      let htmlContent = ''
+      
+      paragraphs.forEach((para, index) => {
+        const trimmedPara = para.trim()
+        if (!trimmedPara) return
+        
+        // Handle bullet points (lines starting with - or *)
+        if (trimmedPara.includes('\n-') || trimmedPara.includes('\n*')) {
+          const lines = trimmedPara.split('\n')
+          let listHtml = '<ul>'
+          let currentItem = ''
+          
+          lines.forEach(line => {
+            const trimmedLine = line.trim()
+            if (trimmedLine.startsWith('-') || trimmedLine.startsWith('*')) {
+              if (currentItem) {
+                listHtml += `<li>${currentItem.trim()}</li>`
+              }
+              currentItem = trimmedLine.substring(1).trim()
+            } else if (currentItem) {
+              currentItem += ' ' + trimmedLine
+            } else {
+              // Text before the list
+              if (trimmedLine) {
+                htmlContent += `<p>${trimmedLine}</p>`
+              }
+            }
+          })
+          
+          if (currentItem) {
+            listHtml += `<li>${currentItem.trim()}</li>`
+          }
+          listHtml += '</ul>'
+          htmlContent += listHtml
+        }
+        // Handle numbered lists (lines starting with numbers)
+        else if (/^\d+\./.test(trimmedPara)) {
+          const lines = trimmedPara.split('\n')
+          let listHtml = '<ol>'
+          
+          lines.forEach(line => {
+            const trimmedLine = line.trim()
+            if (/^\d+\./.test(trimmedLine)) {
+              const content = trimmedLine.replace(/^\d+\.\s*/, '')
+              listHtml += `<li>${content}</li>`
+            }
+          })
+          
+          listHtml += '</ol>'
+          htmlContent += listHtml
+        }
+        // Handle headings (lines starting with #)
+        else if (trimmedPara.startsWith('#')) {
+          const level = trimmedPara.match(/^#+/)[0].length
+          const text = trimmedPara.replace(/^#+\s*/, '')
+          htmlContent += `<h${Math.min(level, 6)}>${text}</h${Math.min(level, 6)}>`
+        }
+        // Regular paragraphs - preserve internal line breaks
+        else {
+          // Replace single line breaks with <br> tags
+          const paraWithBreaks = trimmedPara.replace(/\n/g, '<br>')
+          htmlContent += `<p>${paraWithBreaks}</p>`
+        }
+      })
+      
+      // Insert the formatted HTML content
+      editor.commands.insertContent(htmlContent)
+      
+      setHasUnsavedChanges(true)
+      setStatus('unsaved')
+      setShowAiPreview(false)
+      setAiPreview(null)
+    }
+  }
+
+  // Discard AI-generated documentation
+  function discardAiDocumentation() {
+    setShowAiPreview(false)
+    setAiPreview(null)
   }
 
   // Print/Export as PDF
@@ -845,6 +939,142 @@ export default function EditorPage() {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* AI Preview Modal */}
+      {showAiPreview && aiPreview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 2000,
+          padding: '2rem'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '800px',
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '1.5rem',
+              borderBottom: '1px solid #e1e4e8',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f6f8fa'
+            }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                🤖 AI-Generated Documentation Preview
+              </h3>
+              <button
+                onClick={discardAiDocumentation}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5em',
+                  cursor: 'pointer',
+                  padding: '0',
+                  color: '#666',
+                  lineHeight: '1'
+                }}
+                title="Close preview"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{
+              flex: 1,
+              overflow: 'auto',
+              padding: '1.5rem',
+              backgroundColor: '#fff'
+            }}>
+              <div style={{
+                backgroundColor: '#f9f9f9',
+                border: '1px solid #e1e4e8',
+                borderRadius: '6px',
+                padding: '1.5rem',
+                fontSize: '0.95em',
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap',
+                fontFamily: 'system-ui, -apple-system, sans-serif'
+              }}>
+                {aiPreview}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '1.5rem',
+              borderTop: '1px solid #e1e4e8',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f6f8fa',
+              gap: '1rem'
+            }}>
+              <p style={{
+                margin: 0,
+                fontSize: '0.85em',
+                color: '#666',
+                flex: 1
+              }}>
+                💡 Review the AI-generated content. Click "Insert" to add it to your documentation, or "Discard" to cancel.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={discardAiDocumentation}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.95em',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#5a6268'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#6c757d'}
+                >
+                  ❌ Discard
+                </button>
+                <button
+                  onClick={insertAiDocumentation}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    backgroundColor: '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.95em',
+                    fontWeight: '600',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#218838'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#28a745'}
+                >
+                  ✓ Insert into Documentation
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       
