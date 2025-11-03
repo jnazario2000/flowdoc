@@ -488,16 +488,18 @@ export default function EditorPage() {
 
     try {
       // Create anchor in database
+      // NOTE: Anchors are stored in the DOCUMENTATION file (selectedDocPath),
+      // with docSpan pointing to the CODE file they reference
       const res = await fetch(`${API}/api/documents/anchors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           repoKey,
-          path: selectedCodeFile,
+          path: selectedDocPath, // Store anchor in the documentation file
           startLine: selectedLines.start,
           endLine: selectedLines.end,
           text: anchorLabel,
-          docSpan: selectedDocPath
+          docSpan: selectedCodeFile // Reference to the code file
         })
       })
 
