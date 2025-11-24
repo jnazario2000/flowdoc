@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { connectDB } from "./src/models/db.js";
-
+console.log("Loaded GROQ:", process.env.GROQ_API_KEY);
 import authRoutes from "./src/routes/authRoutes.js";
 import userRoutes from "./src/routes/userRoutes.js";
 import editorRoutes from "./src/routes/editorRoutes.js";
