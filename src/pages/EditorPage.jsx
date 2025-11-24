@@ -8,10 +8,9 @@ import Underline from '@tiptap/extension-underline'
 import Placeholder from '@tiptap/extension-placeholder'
 import TextAlign from '@tiptap/extension-text-align'
 import Image from '@tiptap/extension-image'
-import { Table } from '@tiptap/extension-table'
-import { TableRow } from '@tiptap/extension-table-row'
-import { TableHeader } from '@tiptap/extension-table-header'
-import { TableCell } from '@tiptap/extension-table-cell'
+import BulletList from '@tiptap/extension-bullet-list'
+import OrderedList from '@tiptap/extension-ordered-list'
+import ListItem from '@tiptap/extension-list-item'
 import { getCurrentUserId, getCurrentUser, isAuthenticated } from '../utils/authUtils.js'
 import '../styles.css'
 
@@ -34,10 +33,43 @@ function escapeHtml(str = '') {
 
 function markdownToSimpleHTML(md = '') {
   const safe = escapeHtml(md)
-  // very lightweight: paragraphs + line breaks, no real markdown parsing
   const paras = safe.split(/\n{2,}/).map(p => p.replace(/\n/g, '<br>'))
   return `<p>${paras.join('</p><p>')}</p>`
 }
+
+// Custom bullet list that supports listStyleType
+const StyledBulletList = BulletList.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      listStyleType: {
+        default: null,
+        parseHTML: element => element.style.listStyleType || null,
+        renderHTML: attributes => {
+          if (!attributes.listStyleType) return {}
+          return { style: `list-style-type: ${attributes.listStyleType};` }
+        },
+      },
+    }
+  },
+})
+
+// Custom ordered list that supports listStyleType + type
+const StyledOrderedList = OrderedList.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      listStyleType: {
+        default: null,
+        parseHTML: element => element.style.listStyleType || null,
+        renderHTML: attributes => {
+          if (!attributes.listStyleType) return {}
+          return { style: `list-style-type: ${attributes.listStyleType};` }
+        },
+      },
+    }
+  },
+})
 
 export default function EditorPage() {
   const [sp] = useSearchParams()
@@ -92,13 +124,50 @@ export default function EditorPage() {
   const [spellcheckOn, setSpellcheckOn] = useState(true)
   const importInputRef = useRef(null)
 
+  // list dropdown state (reset after apply)
+  const [bulletSelectValue, setBulletSelectValue] = useState('')
+  const [numberSelectValue, setNumberSelectValue] = useState('')
+
+  // image input ref for local upload
+  const imageInputRef = useRef(null)
+
   const notificationTimer = useRef(null)
   const isDoc = isDocFile(filePath)
+
+  // UI options
+  const BULLET_OPTIONS = [
+    { label: '• Bullet', value: 'disc' },
+    { label: '○ Hollow circle', value: 'circle' },
+    { label: '■ Square', value: 'square' },
+    { label: '— Dash', value: '"-  "' }, // CSS trick: custom marker still ok in most browsers
+  ]
+
+  const NUMBER_OPTIONS = [
+    { label: '1. 2. 3.', value: 'decimal' },
+    { label: 'a. b. c.', value: 'lower-alpha' },
+    { label: 'A. B. C.', value: 'upper-alpha' },
+    { label: 'i. ii. iii.', value: 'lower-roman' },
+    { label: 'I. II. III.', value: 'upper-roman' },
+  ]
 
   // TipTap editor for documentation
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: false }),
+      StarterKit.configure({
+        link: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false,
+      }),
+      ListItem,
+      StyledBulletList.configure({
+        keepMarks: true,
+        keepAttributes: true,
+      }),
+      StyledOrderedList.configure({
+        keepMarks: true,
+        keepAttributes: true,
+      }),
       Underline,
       TipTapLink.configure({
         openOnClick: false,
@@ -109,19 +178,11 @@ export default function EditorPage() {
           target: null,
         },
       }),
-      TextAlign.configure({
-        types: ['heading', 'paragraph'],
-      }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Image.configure({
         inline: false,
         allowBase64: true,
       }),
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
       Placeholder.configure({
         placeholder: 'Write your documentation here...',
       }),
@@ -767,7 +828,28 @@ export default function EditorPage() {
     lineHeight: 1,
   })
 
-  function promptAndInsertImage() {
+  // Local image upload
+  function triggerLocalImagePick() {
+    imageInputRef.current?.click()
+  }
+
+  function onLocalImagePicked(e) {
+    const file = e.target.files?.[0]
+    if (!file || !editor) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const src = String(reader.result || '')
+      if (!src) return
+      editor.chain().focus().setImage({ src }).run()
+      setHasUnsavedChanges(true)
+      setStatus('unsaved')
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  // Image from URL
+  function promptAndInsertImageFromUrl() {
     if (!editor) return
     const url = window.prompt('Paste image URL')
     if (!url) return
@@ -776,9 +858,28 @@ export default function EditorPage() {
     setStatus('unsaved')
   }
 
-  function insertTable() {
+  // Proper list behavior like Word:
+  // Apply list to all selected paragraphs + continue numbering on Enter.
+  function applyBulletStyle(listStyleType) {
     if (!editor) return
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    editor
+      .chain()
+      .focus()
+      .toggleBulletList()
+      .updateAttributes('bulletList', { listStyleType })
+      .run()
+    setHasUnsavedChanges(true)
+    setStatus('unsaved')
+  }
+
+  function applyNumberStyle(listStyleType) {
+    if (!editor) return
+    editor
+      .chain()
+      .focus()
+      .toggleOrderedList()
+      .updateAttributes('orderedList', { listStyleType })
+      .run()
     setHasUnsavedChanges(true)
     setStatus('unsaved')
   }
@@ -1305,15 +1406,9 @@ export default function EditorPage() {
                       Export HTML
                     </button>
 
-                    <div style={{ borderTop: '1px solid #eee', margin: '0.25rem 0' }} />
+              
 
-                    <button
-                      onClick={() => setShowSettingsSub(v => !v)}
-                      style={{ width: '100%', textAlign: 'left', padding: '0.45rem 0.6rem', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', justifyContent: 'space-between' }}
-                    >
-                      Settings
-                      <span>{showSettingsSub ? '▾' : '▸'}</span>
-                    </button>
+                 
 
                     {showSettingsSub && (
                       <div style={{ paddingLeft: '0.5rem' }}>
@@ -1338,8 +1433,8 @@ export default function EditorPage() {
               </div>
             </div>
 
-            {/* Toolbar row (per your screenshot) */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.6rem' }}>
+            {/* Toolbar row */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.6rem', alignItems: 'center' }}>
               {/* Undo / Redo */}
               <button
                 style={toolbarBtnStyle(false)}
@@ -1405,20 +1500,8 @@ export default function EditorPage() {
               </button>
 
               {/* Lists / Quote */}
-              <button
-                style={toolbarBtnStyle(editor?.isActive('bulletList'))}
-                onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                title="Bulleted list"
-              >
-                ⋮
-              </button>
-              <button
-                style={toolbarBtnStyle(editor?.isActive('orderedList'))}
-                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                title="Numbered list"
-              >
-                NumList
-              </button>
+            
+          
               <button
                 style={toolbarBtnStyle(editor?.isActive('blockquote'))}
                 onClick={() => editor?.chain().focus().toggleBlockquote().run()}
@@ -1427,7 +1510,7 @@ export default function EditorPage() {
                 “ ”
               </button>
 
-              {/* Alignment (no duplicate letters) */}
+              {/* Alignment */}
               <button
                 style={toolbarBtnStyle(editor?.isActive({ textAlign: 'left' }))}
                 onClick={() => editor?.chain().focus().setTextAlign('left').run()}
@@ -1457,13 +1540,81 @@ export default function EditorPage() {
                 J
               </button>
 
+              {/* Bullet styles dropdown */}
+              <select
+                value={bulletSelectValue}
+                onChange={e => {
+                  const val = e.target.value
+                  if (val) applyBulletStyle(val)
+                  setBulletSelectValue('')
+                }}
+                style={{
+                  padding: '0.32rem 0.45rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '0.85em',
+                  background: 'white',
+                  cursor: 'pointer',
+                }}
+                title="Bullet styles"
+              >
+                <option value="">Bullets ▼</option>
+                {BULLET_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+
+              {/* Numbering styles dropdown */}
+              <select
+                value={numberSelectValue}
+                onChange={e => {
+                  const val = e.target.value
+                  if (val) applyNumberStyle(val)
+                  setNumberSelectValue('')
+                }}
+                style={{
+                  padding: '0.32rem 0.45rem',
+                  border: '1px solid #ccc',
+                  borderRadius: '4px',
+                  fontSize: '0.85em',
+                  background: 'white',
+                  cursor: 'pointer',
+                }}
+                title="Numbered styles"
+              >
+                <option value="">Numbering ▼</option>
+                {NUMBER_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+
               {/* Insertions */}
-              <button style={toolbarBtnStyle(false)} onClick={promptAndInsertImage} title="Insert image">
+              <button
+                style={toolbarBtnStyle(false)}
+                onClick={triggerLocalImagePick}
+                title="Insert image from device"
+              >
                 🖼️
               </button>
-              <button style={toolbarBtnStyle(false)} onClick={insertTable} title="Insert table (3×3)">
-                ⌗
+              <button
+                style={toolbarBtnStyle(false)}
+                onClick={promptAndInsertImageFromUrl}
+                title="Insert image from URL"
+              >
+                🌐
               </button>
+
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={onLocalImagePicked}
+              />
             </div>
 
             {/* Doc selector */}
