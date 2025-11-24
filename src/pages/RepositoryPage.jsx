@@ -701,7 +701,7 @@ export default function RepositoryPage() {
                 <div className="header-top">
                     <button
                         className="back-button"
-                        onClick={() => navigate(-1)}
+                        onClick={() => navigate('/browseprojects')}
                         style={{marginBottom: "1rem"}}
                     >
                         ⬅ Back
