@@ -162,7 +162,15 @@ const fetchRepoData = async () => {
 
   // display for creating a project
   return (
+
       <div className="explorer-container">
+        <button
+            className="back-button"
+            onClick={() => navigate(-1)}
+            style={{marginBottom: "1rem"}}
+        >
+          ⬅ Back
+        </button>
         <h1 className="header">Create Project</h1>
         <p className="description">
           Enter the following to create a new project
@@ -194,40 +202,41 @@ const fetchRepoData = async () => {
               onChange={(e) => setToken(e.target.value)}
               placeholder="Optional: GitHub Personal Access Token"
           />
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.5rem', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
             margin: '1rem 0',
             padding: '1rem',
             backgroundColor: '#f8f9fa',
             borderRadius: '6px'
           }}>
             <input
-              type="checkbox"
-              id="isPrivate"
-              checked={isPrivate}
-              onChange={(e) => {
-                console.log('Privacy checkbox changed to:', e.target.checked);
-                setIsPrivate(e.target.checked);
-              }}
-              style={{ width: 'auto', cursor: 'pointer' }}
+                type="checkbox"
+                id="isPrivate"
+                checked={isPrivate}
+                onChange={(e) => {
+                  console.log('Privacy checkbox changed to:', e.target.checked);
+                  setIsPrivate(e.target.checked);
+                }}
+                style={{width: 'auto', cursor: 'pointer'}}
             />
-            <label htmlFor="isPrivate" style={{ cursor: 'pointer', margin: 0 }}>
-              <strong>Make this a private project</strong> (requires access token, only you and invited collaborators can view)
+            <label htmlFor="isPrivate" style={{cursor: 'pointer', margin: 0}}>
+              <strong>Make this a private project</strong> (requires access token, only you and invited collaborators
+              can view)
             </label>
           </div>
           {token && (
-            <div style={{ 
-              padding: '0.75rem', 
-              backgroundColor: '#fff3cd', 
-              border: '1px solid #ffc107',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              marginBottom: '1rem'
-            }}>
-              🔒 Note: Using a GitHub token will automatically make this project private
-            </div>
+              <div style={{
+                padding: '0.75rem',
+                backgroundColor: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: '6px',
+                fontSize: '0.9rem',
+                marginBottom: '1rem'
+              }}>
+                🔒 Note: Using a GitHub token will automatically make this project private
+              </div>
           )}
           <button
               className="explore-button"

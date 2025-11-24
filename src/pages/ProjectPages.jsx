@@ -54,6 +54,13 @@ function ProjectPagesList() {
 
     return (
         <div className="project-list-container">
+            <button
+                className="back-button"
+                onClick={() => navigate(-1)}
+                style={{marginBottom: "1rem"}}
+            >
+                ⬅ Back
+            </button>
             <h2>Project Pages</h2>
             <input
                 type="text"
@@ -67,7 +74,7 @@ function ProjectPagesList() {
                     <li
                         key={project._id}
                         className="project-item"
-                        style={{ cursor: "pointer" }}
+                        style={{cursor: "pointer"}}
                         onClick={() => navigate('/repositorypage', {
                             state: {
                                 repoInfo: {

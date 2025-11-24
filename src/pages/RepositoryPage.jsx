@@ -674,7 +674,7 @@ export default function RepositoryPage() {
                         If you believe you should have access, please contact the repository owner for an invitation.
                     </p>
                 )}
-                <button 
+                <button
                     onClick={() => navigate('/')}
                     style={{ 
                         padding: '0.75rem 2rem',
@@ -699,13 +699,17 @@ export default function RepositoryPage() {
         <div className="project-container">
             <header className="project-header">
                 <div className="header-top">
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <Link to="/" className="back-button">← Back to Home</Link>
-                    </div>
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
+                        style={{marginBottom: "1rem"}}
+                    >
+                        ⬅ Back
+                    </button>
                 </div>
                 <div className="header-content">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                    <div>
                             <h1 className="project-title">{repoInfo?.name || repoKey}</h1>
                             {repository && repository.isPrivate && (
                                 <span style={{
