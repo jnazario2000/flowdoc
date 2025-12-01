@@ -83,7 +83,8 @@ export default function EditorPage() {
   const { repoInfo, initialCodeFile, token: stateToken, userRole: stateRole } = location.state || {}
 
   // User role state (commenter can edit, viewer can only view)
-  const [userRole, setUserRole] = useState(roleFromUrl || stateRole || 'viewer')
+  const [userRole, setUserRole] = useState('viewer') // Will be set after checking permissions
+  const [canEdit, setCanEdit] = useState(false) // Whether user has permission to edit
 
   const [documentContent, setDocumentContent] = useState(null)
   const [anchors, setAnchors] = useState([])
@@ -254,7 +255,7 @@ export default function EditorPage() {
     })
   }, [editor, spellcheckOn])
 
-  // Check repository access
+  // Check repository access and set permissions
   useEffect(() => {
     async function checkAccess() {
       if (!repoKey) {
@@ -265,21 +266,62 @@ export default function EditorPage() {
       setAccessDenied(false)
       try {
         if (!isAuthenticated()) {
-          setAccessDenied(true)
+          // Not authenticated - can only view public repos
+          const res = await fetch(
+            `${API}/api/repositories/${encodeURIComponent(repoKey)}/access?userId=guest`
+          )
+          if (res.ok) {
+            const data = await res.json()
+            setRepositoryData(data)
+            if (!data.hasAccess || !data.isPublic) {
+              setAccessDenied(true)
+            } else {
+              // Public repo, not authenticated - viewer only
+              setCanEdit(false)
+              setUserRole('viewer')
+            }
+          } else {
+            // Repository not in DB - allow viewing for legacy support
+            setCanEdit(false)
+            setUserRole('viewer')
+          }
           setAccessChecking(false)
           return
         }
+        
         const currentUser = getCurrentUser()
         const userId = currentUser._id || currentUser.id
         const res = await fetch(
           `${API}/api/repositories/${encodeURIComponent(repoKey)}/access?userId=${userId}`
         )
+        
         if (res.ok) {
           const data = await res.json()
           setRepositoryData(data)
-          if (!data.hasAccess) setAccessDenied(true)
+          
+          if (!data.hasAccess) {
+            setAccessDenied(true)
+            setCanEdit(false)
+            setUserRole('viewer')
+          } else {
+            // Check if user can edit (owner or collaborator)
+            const isOwner = data.isOwner || false
+            const isCollaborator = data.repository?.collaborators?.some(
+              collab => collab.userId === userId
+            ) || false
+            
+            const hasEditPermission = isOwner || isCollaborator
+            setCanEdit(hasEditPermission)
+            
+            // Set default role: commenter if has edit permission, otherwise viewer
+            const defaultRole = hasEditPermission ? 'commenter' : 'viewer'
+            setUserRole(roleFromUrl || stateRole || defaultRole)
+          }
         } else {
           console.warn('Repository not found in database, allowing access for legacy support')
+          // Legacy support - allow editing if authenticated
+          setCanEdit(true)
+          setUserRole(roleFromUrl || stateRole || 'commenter')
         }
       } catch (err) {
         console.error('Error checking repository access:', err)
@@ -288,7 +330,7 @@ export default function EditorPage() {
       }
     }
     checkAccess()
-  }, [repoKey])
+  }, [repoKey, roleFromUrl, stateRole])
 
   // Load available documentation files
   useEffect(() => {
@@ -839,8 +881,18 @@ export default function EditorPage() {
     else navigate('/')
   }
 
-  // Toggle between commenter and viewer roles
+  // Toggle between commenter and viewer roles (only if user has edit permission)
   const toggleRole = () => {
+    if (!canEdit) {
+      setNavigationNotification({
+        message: '⚠️ You need to be invited as an editor to make changes',
+        type: 'warning'
+      })
+      clearTimeout(notificationTimer.current)
+      notificationTimer.current = setTimeout(() => setNavigationNotification(null), 3000)
+      return
+    }
+    
     const newRole = userRole === 'commenter' ? 'viewer' : 'commenter'
     setUserRole(newRole)
     if (editor && !editor.isDestroyed) {
@@ -1083,8 +1135,12 @@ export default function EditorPage() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1000,
-            backgroundColor: navigationNotification.type === 'success' ? '#28a745' : '#007bff',
-            color: 'white',
+            backgroundColor: navigationNotification.type === 'success' 
+              ? '#28a745' 
+              : navigationNotification.type === 'warning'
+              ? '#ffc107'
+              : '#007bff',
+            color: navigationNotification.type === 'warning' ? '#000' : 'white',
             padding: '0.75rem 1.5rem',
             borderRadius: '6px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -1274,20 +1330,29 @@ export default function EditorPage() {
               onClick={toggleRole}
               style={{
                 padding: '0.5rem 1rem',
-                backgroundColor: userRole === 'commenter' ? '#007bff' : '#28a745',
+                backgroundColor: canEdit 
+                  ? (userRole === 'commenter' ? '#007bff' : '#28a745')
+                  : '#6c757d',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
-                cursor: 'pointer',
+                cursor: canEdit ? 'pointer' : 'not-allowed',
                 fontWeight: '600',
                 fontSize: '0.9em',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.3rem',
+                opacity: canEdit ? 1 : 0.7,
               }}
-              title={`Switch to ${userRole === 'commenter' ? 'viewer' : 'commenter'} mode`}
+              title={canEdit 
+                ? `Switch to ${userRole === 'commenter' ? 'viewer' : 'commenter'} mode`
+                : 'You need to be invited as an editor to make changes'
+              }
             >
-              {userRole === 'commenter' ? '✏️ Commenter Mode' : '👁️ Viewer Mode'}
+              {canEdit 
+                ? (userRole === 'commenter' ? '✏️ Commenter Mode' : '👁️ Viewer Mode')
+                : '👁️ Viewer Mode (Read-Only)'
+              }
             </button>
             <strong>{selectedDocPath || 'No document selected'}</strong>
             <span style={{ fontSize: '0.9em', opacity: 0.7 }}>
@@ -1913,7 +1978,7 @@ export default function EditorPage() {
           )}
 
           {/* Code display */}
-          <div style={{ flex: 1, overflow: 'auto', padding: '1rem', fontFamily: 'monospace', fontSize: '13px', backgroundColor: '#f8f8f8' }}>
+          <div style={{ flex: 1, overflow: 'auto', fontFamily: 'monospace', fontSize: '13px', backgroundColor: '#f8f8f8' }}>
             {!selectedCodeFile ? (
               <div style={{ padding: '2rem', textAlign: 'center', opacity: 0.6 }}>
                 <p>Select a code file from the dropdown above to view code</p>
@@ -1932,20 +1997,20 @@ export default function EditorPage() {
 
                 let backgroundColor = 'transparent'
                 let borderLeft = 'none'
-                let paddingLeft = '0'
+                let paddingLeft = '1rem'
 
                 if (isHighlighted) {
                   backgroundColor = '#fff3b0'
                   borderLeft = '4px solid #ffc107'
-                  paddingLeft = '0.5rem'
+                  paddingLeft = '1rem'
                 } else if (isAnchored) {
                   backgroundColor = '#d4f4dd'
                   borderLeft = '4px solid #28a745'
-                  paddingLeft = '0.5rem'
+                  paddingLeft = '1rem'
                 } else if (isSelected) {
                   backgroundColor = '#d4e9ff'
                   borderLeft = '3px solid #007bff'
-                  paddingLeft = '0.5rem'
+                  paddingLeft = '1rem'
                 }
 
                 return (
@@ -1961,10 +2026,15 @@ export default function EditorPage() {
                       display: 'flex',
                       backgroundColor,
                       borderLeft,
-                      paddingLeft,
+                      paddingLeft: paddingLeft || '1rem',
+                      paddingRight: '1rem',
+                      paddingTop: '0.15rem',
+                      paddingBottom: '0.15rem',
                       transition: 'all 0.2s ease',
                       position: 'relative',
                       cursor: isAnchored ? 'pointer' : 'default',
+                      minHeight: '1.5em',
+                      minWidth: '100%',
                     }}
                     title={isAnchored && anchorInfo ? `Click to view in documentation: ${anchorInfo.text} (${anchorInfo.documentPath})` : ''}
                   >
@@ -1984,6 +2054,7 @@ export default function EditorPage() {
                         cursor: userRole === 'commenter' ? 'pointer' : 'default',
                         fontWeight: isSelected || isHighlighted || isAnchored ? 'bold' : 'normal',
                         color: isHighlighted ? '#f57c00' : isAnchored ? '#28a745' : isSelected ? '#0066cc' : '#666',
+                        flexShrink: 0,
                       }}
                     >
                       {lineNum}
@@ -1991,7 +2062,7 @@ export default function EditorPage() {
                         <span style={{ marginLeft: '4px', fontSize: '0.8em', color: '#28a745' }}>🔗</span>
                       )}
                     </span>
-                    <span style={{ whiteSpace: 'pre', flex: 1, position: 'relative' }}>
+                    <span style={{ whiteSpace: 'pre', display: 'inline-block', minWidth: 'max-content' }}>
                       {line}
                       {isAnchored && anchorInfo && lineNum === anchorInfo.startLine && (
                         <span
