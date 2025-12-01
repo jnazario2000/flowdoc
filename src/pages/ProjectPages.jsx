@@ -56,7 +56,7 @@ function ProjectPagesList() {
         <div className="project-list-container">
             <button
                 className="back-button"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('/')}
                 style={{marginBottom: "1rem"}}
             >
                 ⬅ Back
