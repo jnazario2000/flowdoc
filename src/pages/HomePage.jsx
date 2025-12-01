@@ -218,7 +218,7 @@ function Homepage() {
                             Smart Code Linking
                         </h3>
                         <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about linking documentation directly to specific lines of code, making it easy to navigate and understand your codebase]
+                            Create links between documentation and code, making parsing projects faster and easier
                         </p>
                     </div>
 
@@ -244,7 +244,7 @@ function Homepage() {
                             AI-Powered Documentation
                         </h3>
                         <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about AI automatically generating documentation from code, saving time and ensuring consistency]
+                            Generate documentation for your code files using a robust AI
                         </p>
                     </div>
 
@@ -270,7 +270,7 @@ function Homepage() {
                             Team Collaboration
                         </h3>
                         <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about real-time collaboration, role-based permissions, and team features]
+                            Collaborate with others using different roles and permissions to fascilitate documentation
                         </p>
                     </div>
 
@@ -296,11 +296,39 @@ function Homepage() {
                             Rich Text Editor
                         </h3>
                         <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about the powerful editor with formatting, images, lists, and more]
+                            Edit documentation through a simple editor with quick parsing through files
                         </p>
                     </div>
 
+
                     {/* Feature Card 5 */}
+                    <div style={{
+                        background: 'rgba(255, 255, 255, 0.95)',
+                        borderRadius: '16px',
+                        padding: '2.5rem 2rem',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        transition: 'transform 0.3s, box-shadow 0.3s',
+                        cursor: 'default'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-8px)';
+                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15)';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)';
+                    }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚡</div>
+                        <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#000' }}>
+                            GitHub Integration
+                        </h3>
+                        <p style={{ color: '#666', lineHeight: '1.6' }}>
+                            Integrate with already existing repositories to quickly jumpstart documentation
+                        </p>
+                    </div>
+                
+
+                    {/* Feature Card 6 */}
                     <div style={{
                         background: 'rgba(255, 255, 255, 0.95)',
                         borderRadius: '16px',
@@ -322,33 +350,7 @@ function Homepage() {
                             Access Control
                         </h3>
                         <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about private repositories, role management, and security features]
-                        </p>
-                    </div>
-
-                    {/* Feature Card 6 */}
-                    <div style={{
-                        background: 'rgba(255, 255, 255, 0.95)',
-                        borderRadius: '16px',
-                        padding: '2.5rem 2rem',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                        transition: 'transform 0.3s, box-shadow 0.3s',
-                        cursor: 'default'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-8px)';
-                        e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15)';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.1)';
-                    }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚡</div>
-                        <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: '#000' }}>
-                            Fast & Intuitive
-                        </h3>
-                        <p style={{ color: '#666', lineHeight: '1.6' }}>
-                            [PLACEHOLDER: Add description about performance, ease of use, and modern interface]
+                            Keep your repository private and secure with role-based security
                         </p>
                     </div>
                 </div>
