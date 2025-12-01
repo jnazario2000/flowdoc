@@ -58,6 +58,13 @@ function Signin() {
 
   return (
     <div className="container" style={{ maxWidth: '500px', margin: '2rem auto' }}>
+      <button
+        className="back-button"
+        onClick={() => navigate('/')}
+        style={{ marginBottom: '1rem' }}
+      >
+        ⬅ Back to Home
+      </button>
       <h1 className="header">Sign In</h1>
       <h2 className="subheader">Welcome back to FlowDoc</h2>
 

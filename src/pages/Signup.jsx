@@ -117,6 +117,13 @@ function Signup() {
 
   return (
     <div className="container" style={{ maxWidth: '500px', margin: '2rem auto' }}>
+      <button
+        className="back-button"
+        onClick={() => navigate('/')}
+        style={{ marginBottom: '1rem' }}
+      >
+        ⬅ Back to Home
+      </button>
       <h1 className="header">Create Account</h1>
       <h2 className="subheader">Sign up to start documenting your code</h2>
 
