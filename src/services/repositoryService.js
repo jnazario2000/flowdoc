@@ -154,6 +154,41 @@ export const repositoryService = {
     await connectDB();
     const result = await state.repositories.deleteOne({ repoKey });
     return result.deletedCount > 0;
+  },
+
+  // Get documentation goals (todos) for a repository
+  async getTodos(repoKey) {
+    await connectDB();
+    const repository = await state.repositories.findOne({ repoKey });
+    
+    // Return empty array if repository doesn't exist or has no todos
+    return repository?.todos || [];
+  },
+
+  // Save documentation goals (todos) for a repository
+  async saveTodos(repoKey, todos) {
+    await connectDB();
+    
+    // Upsert: create repository entry if it doesn't exist
+    await state.repositories.updateOne(
+      { repoKey },
+      { 
+        $set: { 
+          todos,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          repoKey,
+          name: repoKey,
+          description: '',
+          isPrivate: false,
+          createdAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+
+    return todos;
   }
 };
 

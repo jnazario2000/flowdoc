@@ -577,22 +577,62 @@ export default function RepositoryPage() {
         }
     };
 
+    // Load todos from database
+    useEffect(() => {
+        const loadTodos = async () => {
+            if (!repoKey) return;
+            
+            try {
+                const res = await fetch(`${API}/api/repositories/${encodeURIComponent(repoKey)}/todos`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setTodos(data.todos || []);
+                }
+            } catch (err) {
+                console.error('Error loading documentation goals:', err);
+            }
+        };
+        
+        loadTodos();
+    }, [repoKey]);
+
+    // Save todos to database
+    const saveTodosToDatabase = async (updatedTodos) => {
+        if (!repoKey) return;
+        
+        try {
+            await fetch(`${API}/api/repositories/${encodeURIComponent(repoKey)}/todos`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ todos: updatedTodos })
+            });
+        } catch (err) {
+            console.error('Error saving documentation goals:', err);
+        }
+    };
+
     // To-do list functions
     const addTodo = () => {
         if (!newTodo.trim()) return;
-        setTodos([...todos, { id: Date.now(), text: newTodo, completed: false }]);
+        const updatedTodos = [...todos, { id: Date.now(), text: newTodo, completed: false }];
+        setTodos(updatedTodos);
+        saveTodosToDatabase(updatedTodos);
         setNewTodo('');
         setShowTodoForm(false);
     };
 
     const toggleTodo = (id) => {
-        setTodos(todos.map(todo => 
+        const updatedTodos = todos.map(todo => 
             todo.id === id ? { ...todo, completed: !todo.completed } : todo
-        ));
+        );
+        setTodos(updatedTodos);
+        saveTodosToDatabase(updatedTodos);
     };
 
     const deleteTodo = (id) => {
-        setTodos(todos.filter(todo => todo.id !== id));
+        const updatedTodos = todos.filter(todo => todo.id !== id);
+        setTodos(updatedTodos);
+        saveTodosToDatabase(updatedTodos);
     };
 
     const saveDescription = () => {

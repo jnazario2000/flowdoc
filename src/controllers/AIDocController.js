@@ -1,4 +1,4 @@
- import { generateAIDoc } from "../services/groqService.js";
+ import { generateAIDoc } from "../services/GroqService.js";
 
  // Controller for Groq Service to generate documentation
  export async function generateDoc(req, res) {

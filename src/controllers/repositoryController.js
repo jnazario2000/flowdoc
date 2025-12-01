@@ -162,6 +162,41 @@ export const repositoryController = {
       console.error('Error removing collaborator:', error);
       return res.status(500).json({ message: error.message });
     }
+  },
+
+  // Get documentation goals (todos) for a repository
+  async getTodos(req, res) {
+    try {
+      const { repoKey } = req.params;
+      const todos = await repositoryService.getTodos(repoKey);
+      
+      return res.json({ todos });
+    } catch (error) {
+      console.error('Error getting todos:', error);
+      return res.status(500).json({ message: error.message });
+    }
+  },
+
+  // Save documentation goals (todos) for a repository
+  async saveTodos(req, res) {
+    try {
+      const { repoKey } = req.params;
+      const { todos } = req.body;
+
+      if (!Array.isArray(todos)) {
+        return res.status(400).json({ message: 'Todos must be an array' });
+      }
+
+      await repositoryService.saveTodos(repoKey, todos);
+
+      return res.json({
+        message: 'Documentation goals saved successfully',
+        todos
+      });
+    } catch (error) {
+      console.error('Error saving todos:', error);
+      return res.status(500).json({ message: error.message });
+    }
   }
 };
 

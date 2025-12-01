@@ -24,5 +24,9 @@ router.put('/repositories/:repoKey', repositoryController.updateRepository);
 // Remove a collaborator
 router.delete('/repositories/:repoKey/collaborators', repositoryController.removeCollaborator);
 
+// Documentation goals (todos)
+router.get('/repositories/:repoKey/todos', repositoryController.getTodos);
+router.put('/repositories/:repoKey/todos', repositoryController.saveTodos);
+
 export default router;
 

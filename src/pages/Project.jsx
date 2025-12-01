@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
 import '../styles.css';
 
+const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 function GitHubFileExplorer() {
   const [repoUrl, setRepoUrl] = useState('');
   const [error, setError] = useState(null);
@@ -14,6 +16,7 @@ function GitHubFileExplorer() {
   const [token, setToken] = useState(''); // GitHub token for private repos
   const [isPrivate, setIsPrivate] = useState(false); // Privacy setting
   const [currentUser, setCurrentUser] = useState(null);
+  const [parsedRepo, setParsedRepo] = useState(null); // Show parsed owner/repo
 
   // Check authentication on mount
   useEffect(() => {
@@ -24,16 +27,36 @@ function GitHubFileExplorer() {
     setCurrentUser(getCurrentUser());
   }, [navigate]);
 
+  // Parse and display repository info whenever URL changes
+  useEffect(() => {
+    const parsed = parseOwnerRepo(repoUrl);
+    setParsedRepo(parsed);
+  }, [repoUrl]);
+
   // robust parse: https://github.com/<owner>/<repo>[.git][...]
   function parseOwnerRepo(url) {
     if (!url) return null;
-    const m = url.trim().match(/github\.com\/([^/]+)\/([^/?#]+)(?:\.git)?/i);
-    return m ? { owner: m[1], repo: m[2] } : null;
+    const m = url.trim().match(/github\.com\/([^/]+)\/([^/?#]+)/i);
+    if (!m) return null;
+    
+    // Remove .git suffix if present
+    let repo = m[2];
+    if (repo.endsWith('.git')) {
+      repo = repo.slice(0, -4);
+    }
+    
+    return { owner: m[1], repo };
   }
 
   // helper: fetch with token if provided
   async function fetchWithAuth(url) {
-    const headers = token ? { Authorization: `token ${token}` } : {};
+    const headers = {};
+    if (token) {
+      // Try Bearer format first (modern), fallback to token format
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    console.log('Fetching URL:', url);
+    console.log('Using token:', token ? 'Yes (Bearer format)' : 'No');
     return fetch(url, { headers });
   }
 
@@ -47,9 +70,44 @@ const fetchRepoData = async () => {
     const { owner, repo } = parsed;
     const repoKey = `${owner}/${repo}`;
 
-    const repoResponse = await fetchWithAuth(`https://api.github.com/repos/${owner}/${repo}`);
-    if (!repoResponse.ok) throw new Error(`Failed to fetch repository info. (status ${repoResponse.status})`);
+    console.log('Attempting to fetch repository:', { owner, repo, repoKey });
+
+    // First attempt with Bearer token (if provided)
+    let repoResponse = await fetchWithAuth(`https://api.github.com/repos/${owner}/${repo}`);
+    
+    // If Bearer fails with 401 and we have a token, try legacy token format
+    if (!repoResponse.ok && repoResponse.status === 401 && token) {
+      console.log('Bearer format failed, trying legacy token format...');
+      const headers = { Authorization: `token ${token}` };
+      repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers });
+    }
+    
+    // Better error handling for GitHub API
+    if (!repoResponse.ok) {
+      const errorData = await repoResponse.json().catch(() => ({}));
+      console.error('GitHub API Error:', errorData);
+      
+      if (repoResponse.status === 401) {
+        throw new Error('GitHub token is invalid or expired. Please generate a new token with "repo" scope.');
+      } else if (repoResponse.status === 404) {
+        if (token) {
+          throw new Error(`Repository "${repoKey}" not found or token doesn't have access. Check: 1) Repository URL is correct 2) Token has "repo" scope 3) Token owner has access to this repository`);
+        } else {
+          throw new Error(`Repository "${repoKey}" not found or is private. If it's private, please provide a GitHub Personal Access Token.`);
+        }
+      } else if (repoResponse.status === 403) {
+        throw new Error('Access forbidden. Your token may not have the required permissions (needs "repo" scope).');
+      }
+      throw new Error(`Failed to fetch repository info. (status ${repoResponse.status}) ${errorData.message || ''}`);
+    }
+    
     const repoData = await repoResponse.json();
+    console.log('Repository data fetched successfully:', { name: repoData.name, private: repoData.private });
+    
+    // Check if repo is private and warn if no token provided
+    if (repoData.private && !token) {
+      throw new Error('This is a private repository. Please provide a GitHub Personal Access Token.');
+    }
 
     const files = await fetchFiles(owner, repo);
 
@@ -64,7 +122,7 @@ const fetchRepoData = async () => {
     });
 
     // Save the project to DB
-    const saveRes = await fetch('http://localhost:3000/api/project-pages', {
+    const saveRes = await fetch(`${API}/api/project-pages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -93,7 +151,7 @@ const fetchRepoData = async () => {
     
     console.log('Creating repository with data:', repositoryData);
     
-    const repoCreateRes = await fetch('http://localhost:3000/api/repositories', {
+    const repoCreateRes = await fetch(`${API}/api/repositories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(repositoryData),
@@ -138,8 +196,20 @@ const fetchRepoData = async () => {
   // fetches the files and adds the data
   const fetchFiles = async (owner, repo, urlPath = '') => {
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${urlPath}`;
-    const response = await fetchWithAuth(apiUrl);
-    if (!response.ok) throw new Error(`GitHub API ${response.status}`);
+    let response = await fetchWithAuth(apiUrl);
+    
+    // Try legacy token format if Bearer fails
+    if (!response.ok && response.status === 401 && token) {
+      console.log('Bearer format failed for contents, trying legacy token format...');
+      const headers = { Authorization: `token ${token}` };
+      response = await fetch(apiUrl, { headers });
+    }
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`GitHub API ${response.status}: ${errorData.message || 'Failed to fetch files'}`);
+    }
+    
     const data = await response.json();
     const fetchedFiles = [];
 
@@ -195,13 +265,59 @@ const fetchRepoData = async () => {
               onChange={(e) => setRepoUrl(e.target.value)}
               placeholder="https://github.com/owner/repository"
           />
+          
+          {/* Show parsed repository info */}
+          {parsedRepo && (
+              <div style={{
+                padding: '0.5rem',
+                backgroundColor: '#e8f5e9',
+                border: '1px solid #4caf50',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                marginBottom: '0.5rem'
+              }}>
+                ✓ Will fetch: <strong>{parsedRepo.owner}/{parsedRepo.repo}</strong>
+              </div>
+          )}
+          {repoUrl && !parsedRepo && (
+              <div style={{
+                padding: '0.5rem',
+                backgroundColor: '#ffebee',
+                border: '1px solid #f44336',
+                borderRadius: '4px',
+                fontSize: '0.9rem',
+                marginBottom: '0.5rem'
+              }}>
+                ⚠ Invalid GitHub URL format
+              </div>
+          )}
+          
           <input
               className="repo-input-token"
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Optional: GitHub Personal Access Token"
+              placeholder="Optional: GitHub Personal Access Token (required for private repos)"
           />
+          
+          {/* Token Help Message */}
+          <div style={{
+            padding: '0.75rem',
+            backgroundColor: '#e7f3ff',
+            border: '1px solid #0066cc',
+            borderRadius: '6px',
+            fontSize: '0.85rem',
+            marginBottom: '1rem'
+          }}>
+            <strong>🔑 Need a GitHub Token?</strong>
+            <ol style={{ margin: '0.5rem 0 0 0', paddingLeft: '1.5rem' }}>
+              <li>Go to <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc' }}>GitHub Settings → Developer Settings → Personal Access Tokens</a></li>
+              <li>Click "Generate new token (classic)"</li>
+              <li>Give it a name and select the <strong>"repo"</strong> scope (full control of private repositories)</li>
+              <li>Click "Generate token" and copy it here</li>
+            </ol>
+          </div>
+          
           <div style={{
             display: 'flex',
             alignItems: 'center',
