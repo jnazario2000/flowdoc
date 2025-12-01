@@ -27,7 +27,6 @@ function Homepage() {
             <nav>
                 <div className="logo">FlowDoc</div>
                 <div className="nav-links">
-                    <a href="#">Features</a>
                     <Link to="/profile" className="profile-link">Profile</Link>
                     {authenticated ? (
                         <>
