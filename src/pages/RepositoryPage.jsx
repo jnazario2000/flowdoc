@@ -44,6 +44,7 @@ export default function RepositoryPage() {
     // Access control state
     const [repository, setRepository] = useState(null);
     const [isOwner, setIsOwner] = useState(false);
+    const [canEdit, setCanEdit] = useState(false); // Whether user can edit/delete (owner or collaborator)
     const [showInvitationManager, setShowInvitationManager] = useState(false);
     const [currentUser, setCurrentUser] = useState(null);
     const [accessDenied, setAccessDenied] = useState(false);
@@ -297,6 +298,8 @@ export default function RepositoryPage() {
                             return;
                         }
                     }
+                    // Unauthenticated users can view but not edit/delete
+                    setCanEdit(false);
                     // If repo doesn't exist in DB or is public, allow access (legacy support)
                     setAccessChecking(false);
                     return;
@@ -315,6 +318,7 @@ export default function RepositoryPage() {
                     if (accessInfo.repository) {
                         setRepository(accessInfo.repository);
                         setIsOwner(accessInfo.isOwner);
+                        setCanEdit(accessInfo.canEdit || accessInfo.isOwner); // Owners and collaborators can edit/delete
                         
                         // Check if user has access
                         if (!accessInfo.hasAccess) {
@@ -323,6 +327,7 @@ export default function RepositoryPage() {
                     } else {
                         // Repository doesn't exist in DB - allow access for legacy support
                         console.log('Repository not in RBAC system, allowing access');
+                        setCanEdit(true); // Legacy repos allow editing
                     }
                 } else {
                     console.warn('Could not check repository access');
@@ -470,7 +475,8 @@ export default function RepositoryPage() {
         }
 
         try {
-            const res = await fetch(`${API}/api/documents?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(docPath)}`, {
+            const userId = currentUser?._id || currentUser?.id || '';
+            const res = await fetch(`${API}/api/documents?repoKey=${encodeURIComponent(repoKey)}&path=${encodeURIComponent(docPath)}&userId=${encodeURIComponent(userId)}`, {
                 method: 'DELETE'
             });
 
@@ -1042,19 +1048,21 @@ export default function RepositoryPage() {
                                                     onClick={() => openEditor(doc.path)}
                                                     style={{ padding: '0.4rem 0.8rem' }}
                                                 >
-                                                    Edit
+                                                    {canEdit ? 'Edit' : 'View'}
                                                 </button>
-                                                <button 
-                                                    className="edit-button" 
-                                                    onClick={() => deleteDocument(doc.path)}
-                                                    style={{ 
-                                                        padding: '0.4rem 0.8rem',
-                                                        backgroundColor: '#dc3545',
-                                                        borderColor: '#dc3545'
-                                                    }}
-                                                >
-                                                    Delete
-                                                </button>
+                                                {canEdit && (
+                                                    <button 
+                                                        className="edit-button" 
+                                                        onClick={() => deleteDocument(doc.path)}
+                                                        style={{ 
+                                                            padding: '0.4rem 0.8rem',
+                                                            backgroundColor: '#dc3545',
+                                                            borderColor: '#dc3545'
+                                                        }}
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

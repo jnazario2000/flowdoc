@@ -75,13 +75,15 @@ export const repositoryService = {
     const repository = await this.getRepositoryByKey(repoKey);
     
     // If repository doesn't exist in database, allow access (legacy support)
-    if (!repository) return { hasAccess: true, isOwner: false, isPublic: true };
+    if (!repository) return { hasAccess: true, isOwner: false, isCollaborator: false, canEdit: false, isPublic: true };
     
     const hasAccess = repository.hasAccess(userId);
     const isOwner = repository.isOwner(userId);
+    const isCollaborator = repository.collaborators.some(c => c.userId === userId);
+    const canEdit = isOwner || isCollaborator; // Owners and collaborators can edit/delete
     const isPublic = !repository.isPrivate;
     
-    return { hasAccess, isOwner, isPublic, repository };
+    return { hasAccess, isOwner, isCollaborator, canEdit, isPublic, repository };
   },
 
   // Add a collaborator to a repository

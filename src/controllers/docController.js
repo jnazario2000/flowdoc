@@ -2,6 +2,7 @@
 
 import { state } from "../models/db.js";
 import { ObjectId } from "mongodb";
+import { repositoryService } from "../services/repositoryService.js";
 
 // GET /api/documents?repoKey=owner/repo&path=src/file.js
 // Returns saved documentation for a specific file (or empty document if none).
@@ -102,11 +103,21 @@ export async function upsertDoc(req, res) {
   return res.json({ ok: true, document: value });
 }
 
-// DELETE /api/documents?repoKey=owner/repo&path=src/file.js
-// Deletes a document
+// DELETE /api/documents?repoKey=owner/repo&path=src/file.js&userId=xxx
+// Deletes a document (only owners and collaborators can delete)
 export async function deleteDocument(req, res) {
-  const { repoKey, path } = req.query;
+  const { repoKey, path, userId } = req.query;
   if (!repoKey || !path) return res.status(400).json({ error: "repoKey and path required" });
+
+  // Check user permissions if userId is provided
+  if (userId) {
+    const accessInfo = await repositoryService.checkAccess(repoKey, userId);
+    
+    // If repository exists in DB and user doesn't have edit permission, deny
+    if (accessInfo.repository && !accessInfo.canEdit) {
+      return res.status(403).json({ error: "You don't have permission to delete documents in this repository" });
+    }
+  }
 
   const result = await state.documents.deleteOne({ repoKey, path });
   
