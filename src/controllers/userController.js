@@ -39,7 +39,10 @@ async function updateUser(req, res) {
   try {
     const success = await userService.updateUser(id, updates);
     if (!success) return res.status(404).json({ message: "User not found or no changes made" });
-    return res.json({ message: "User updated" });
+    
+    // Return the updated user object so frontend can update localStorage
+    const updatedUser = await userService.getUserById(id);
+    return res.json(updatedUser);
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

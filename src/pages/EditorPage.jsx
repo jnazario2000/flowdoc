@@ -14,7 +14,7 @@ import ListItem from '@tiptap/extension-list-item'
 import { getCurrentUserId, getCurrentUser, isAuthenticated } from '../utils/authUtils.js'
 import '../styles.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+const API = import.meta.env.VITE_API_URL || ''
 
 // Helper to determine if a file is a documentation file
 function isDocFile(path) {
@@ -1401,7 +1401,7 @@ export default function EditorPage() {
             {/* Title + Save/Export + Options */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
               <h3 style={{ margin: 0 }}>
-                {userRole === 'commenter' ? '📝 Documentation Editor' : '📖 Documentation Viewer'}
+                {userRole === 'commenter' ? 'Documentation Editor' : 'Documentation Viewer'}
               </h3>
 
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', position: 'relative' }}>
@@ -1800,7 +1800,7 @@ export default function EditorPage() {
         <div className="code-viewer-panel" style={{ width: '50%', display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '1rem', borderBottom: '1px solid #ddd', backgroundColor: '#f5f5f5' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-              <h3 style={{ margin: 0 }}>💻 Code Viewer</h3>
+              <h3 style={{ margin: 0 }}>Code Viewer</h3>
               {userRole === 'commenter' && (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <button
@@ -1809,7 +1809,7 @@ export default function EditorPage() {
                     disabled={!selectedLines.start || !selectedLines.end || aiGenerating}
                     style={{ padding: '0.5rem 1rem', fontSize: '0.9em' }}
                   >
-                    {aiGenerating ? 'Generating...' : '🤖 Generate AI Documentation'}
+                    {aiGenerating ? 'Generating...' : 'Generate AI Documentation'}
                   </button>
                   <button
                     onClick={() => {
@@ -1871,7 +1871,7 @@ export default function EditorPage() {
 
             <input
               type="text"
-              placeholder="🔍 Search files..."
+              placeholder="Search files..."
               value={codeFileSearchTerm}
               onChange={e => setCodeFileSearchTerm(e.target.value)}
               style={{

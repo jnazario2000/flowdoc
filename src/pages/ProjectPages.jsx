@@ -15,7 +15,7 @@ function ProjectPagesList() {
     useEffect(() => {
         const fetchProjectPages = async () => {
             try {
-                const response = await axios.get('http://localhost:3000/api/project-pages');
+                const response = await axios.get('/api/project-pages');
                 if (response.data && Array.isArray(response.data)) {
                     setProjectPages(response.data);
                     setFilteredProjects(response.data);
@@ -197,7 +197,7 @@ function ProjectPagesList() {
                     <div style={{ position: 'relative' }}>
                         <input
                             type="text"
-                            placeholder="🔍 Search projects by name or description..."
+                            placeholder="Search projects by name or description..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             style={{
@@ -380,7 +380,7 @@ function ProjectPagesList() {
                                         alignItems: 'center',
                                         gap: '0.5rem'
                                     }}>
-                                        📅 {new Date(project.createdAt).toLocaleDateString('en-US', {
+                                        {new Date(project.createdAt).toLocaleDateString('en-US', {
                                             month: 'short',
                                             day: 'numeric',
                                             year: 'numeric'

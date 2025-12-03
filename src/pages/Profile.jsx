@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { getCurrentUser, getCurrentUserId, isAuthenticated, logout } from "../utils/authUtils";
+import { getCurrentUser, getCurrentUserId, isAuthenticated, logout, updateCurrentUser } from "../utils/authUtils";
 import { useNavigate } from "react-router-dom";
 import InvitationViewer from "../components/InvitationViewer";
 import "../styles.css";
@@ -13,8 +13,7 @@ import "../styles.css";
  */
 
 const API_BASE =
-  (import.meta?.env && import.meta.env.VITE_API_BASE_URL) ||
-  "http://localhost:3000";
+  (import.meta?.env && import.meta.env.VITE_API_BASE_URL) || "";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -111,7 +110,7 @@ export default function Profile() {
       }
 
       setUser(saved);
-      localStorage.setItem("flowdoc_user", JSON.stringify(saved));
+      updateCurrentUser(saved);  // Use correct localStorage key
       setEditOpen(false);
     } catch (err) {
       console.error("Failed to save profile", err);

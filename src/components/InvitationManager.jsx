@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCurrentUser, isAuthenticated } from '../utils/authUtils';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function InvitationManager({ repoKey, repoName, onClose }) {
   const [username, setUsername] = useState('');

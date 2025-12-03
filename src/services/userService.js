@@ -91,12 +91,15 @@ async function validateCredentials(identifier, password) {
 }
 
 async function updateUser(id, updates) {
+  // Remove _id from updates - MongoDB doesn't allow updating _id field
+  const { _id, ...cleanUpdates } = updates;
+  
   // If updating password, hash it
-  if (updates.password) {
-    updates.password = await bcrypt.hash(updates.password, SALT_ROUNDS);
+  if (cleanUpdates.password) {
+    cleanUpdates.password = await bcrypt.hash(cleanUpdates.password, SALT_ROUNDS);
   }
 
-  const $set = { ...updates, updatedAt: new Date() };
+  const $set = { ...cleanUpdates, updatedAt: new Date() };
   const r = await state.users.updateOne({ _id: new ObjectId(id) }, { $set });
   return r.matchedCount > 0;
 }

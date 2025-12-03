@@ -16,44 +16,72 @@ import AIDocRoutes from "./src/routes/AIDocRoutes.js";
 import repositoryRoutes from "./src/routes/repositoryRoutes.js";
 import invitationRoutes from "./src/routes/invitationRoutes.js";
 
+import fs from "fs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const NODE_ENV = process.env.NODE_ENV || "development";
 const HOST = process.env.HOST || "0.0.0.0"; // Listen on all network interfaces
+
+// Auto-detect production mode: if dist folder exists, assume production
+const distPath = path.join(__dirname, "dist");
+const hasDistFolder = fs.existsSync(distPath);
+const NODE_ENV = process.env.NODE_ENV || (hasDistFolder ? "production" : "development");
 
 // ============================
 // 🔵 Dynamic CORS Setup
 // ============================
 
 // Helper function to get local IP address
+// Prefers real network IPs (192.168.x.x, 10.x.x.x) over virtual ones (WSL/Docker 172.x.x.x)
 async function getLocalIP() {
   try {
     const { networkInterfaces } = await import("os");
     const nets = networkInterfaces();
-
+    
+    const candidates = [];
+    
     for (const name of Object.keys(nets)) {
       for (const net of nets[name]) {
         if (net.family === "IPv4" && !net.internal) {
-          return net.address;
+          candidates.push(net.address);
         }
       }
     }
+    
+    // Prefer common home/office network ranges over virtual network IPs
+    // 192.168.x.x and 10.x.x.x are typically real WiFi/Ethernet
+    // 172.16-31.x.x can be WSL, Docker, or corporate networks
+    const preferredIP = candidates.find(ip => 
+      ip.startsWith("192.168.") || ip.startsWith("10.")
+    );
+    
+    return preferredIP || candidates[0] || "localhost";
   } catch (error) {
     console.error("Error getting IP:", error);
   }
   return "localhost";
 }
 
-// Build allowed origins
-let allowedOrigins = ["http://localhost:5173"];
+// Build allowed origins based on environment
+let allowedOrigins = [];
 
 // Add the dynamic network IP origin
 (async () => {
   const localIP = await getLocalIP();
-  allowedOrigins.push(`http://${localIP}:5173`);
+  
+  if (NODE_ENV === "production") {
+    // In production, frontend is served from the same server (port 3000)
+    allowedOrigins.push(`http://localhost:${PORT}`);
+    allowedOrigins.push(`http://${localIP}:${PORT}`);
+  } else {
+    // In development, Vite dev server runs on port 5173
+    allowedOrigins.push("http://localhost:5173");
+    allowedOrigins.push(`http://${localIP}:5173`);
+  }
+  
   console.log("✅ Allowed CORS Origins:", allowedOrigins);
 })();
 
@@ -103,7 +131,6 @@ app.use("/api", invitationRoutes);
 // Production: Serve React
 // ============================
 if (NODE_ENV === "production") {
-  const distPath = path.join(__dirname, "dist");
   app.use(express.static(distPath));
 
   app.get("*", (_req, res) => {

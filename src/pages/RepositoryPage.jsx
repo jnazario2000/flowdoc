@@ -5,7 +5,7 @@ import { getCurrentUser, isAuthenticated } from "../utils/authUtils";
 import InvitationManager from "../components/InvitationManager";
 import "../styles.css";
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API = import.meta.env.VITE_API_URL || '';
 
 export default function RepositoryPage() {
     const navigate = useNavigate();
@@ -788,7 +788,7 @@ export default function RepositoryPage() {
                                     onClick={() => setIsEditingDescription(true)}
                                     style={{ padding: '0.4rem 0.8rem', fontSize: '0.9em' }}
                                 >
-                                    ✏️ Edit Description
+                                    Edit Description
                                 </button>
                             )}
                         </div>
@@ -840,7 +840,7 @@ export default function RepositoryPage() {
                 {/* To-Do List Section */}
                 <section className="files-section" style={{ marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h2>✅ Documentation Goals</h2>
+                        <h2>Documentation Goals</h2>
                         <button 
                             className="edit-button" 
                             onClick={() => setShowTodoForm(!showTodoForm)}
@@ -953,7 +953,7 @@ export default function RepositoryPage() {
                 {/* Documents Section */}
                 <section className="files-section" style={{ marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h2>📄 Documentation Files</h2>
+                        <h2>Documentation Files</h2>
                         <button 
                             className="edit-button" 
                             onClick={() => setShowCreateDoc(!showCreateDoc)}
@@ -1068,7 +1068,7 @@ export default function RepositoryPage() {
                 {/* Repository Files Section */}
                 <section className="files-section">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h2>📂 Repository Files</h2>
+                        <h2>Repository Files</h2>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <button 
                                 onClick={() => setShowOnlyUndocumented(!showOnlyUndocumented)}
